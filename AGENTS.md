@@ -16,6 +16,8 @@ implemented features and verified results; do not record intentions as facts.
   and cases under `tests/differential/` are also implemented. Development
   checks are configured in `.pre-commit-config.yaml`, with YAML rules in
   `.yamllint.yaml` and Perl::Critic policy selections in `.perlcriticrc`.
+  GitHub Actions CI runs on pushes to `main` and pull requests via
+  `.github/workflows/ci.yml`.
 - `patch.pl` implements: full GNU-style CLI (getopt_long port with
   permutation, abbreviations, attached arguments, POSIX mode, environment
   defaults), patch format detection, unified/normal/context/Git-style text

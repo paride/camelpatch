@@ -57,6 +57,9 @@ gnu-patch/             GNU patch reference checkout pinned to the target release
 
 ## Testing
 
+GitHub Actions runs the GNU baseline, Camel patch GNU suite, differential cases,
+pre-commit checks, and focused regressions on pushes to `main` and pull requests.
+
 Initialize the GNU reference checkout, then run its suite:
 
 ```sh
