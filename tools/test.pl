@@ -245,6 +245,8 @@ sub run_test {
     my $pid = fork;
     die "Cannot fork: $!\n" unless defined $pid;
     if ($pid == 0) {
+        POSIX::setsid() >= 0
+            or child_runner_error("setsid: $!");
         open STDOUT, '>', $arg{log}
             or POSIX::_exit(125);
         open STDERR, '>&', \*STDOUT
@@ -256,8 +258,6 @@ sub run_test {
         $ENV{$_} = $arg{env}{$_} for keys %{ $arg{env} };
         print "# command: /bin/sh $arg{script}\n";
         print "# PATCH: $arg{env}{PATCH}\n";
-        POSIX::setsid() >= 0
-            or child_runner_error("setsid: $!");
         exec '/bin/sh', $arg{script}
             or child_runner_error("exec /bin/sh: $!");
     }
