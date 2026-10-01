@@ -1,6 +1,6 @@
-# NonGNU patch
+# Camel patch
 
-NonGNU patch is a self-contained Perl reimplementation of GNU patch. It applies
+Camel patch is a self-contained Perl reimplementation of GNU patch. It applies
 diff files to original files and aims for exact observable compatibility with a
 pinned GNU patch release: command-line parsing, environment variables, patch
 parsing and application, prompts, diagnostics, exit statuses, backups, rejects,
@@ -28,9 +28,9 @@ guide, the current state, and the testing workflow.
   `Prereq:` checking; `-D NAME` conditional output; ed-format patches.
 - Excluded by agreement: legacy version-control checkout integrations
   (RCS, SCCS, ClearCase, Perforce retrieval via `-g`/`--get`/`PATCH_GET`).
-  NonGNU patch is an offline tool.
+  Camel patch is an offline tool.
 - Like GNU patch 2.8, Git binary patches are rejected, not applied.
-- Branding differs on purpose: messages say "NonGNU patch" where GNU patch says
+- Branding differs on purpose: messages say "Camel patch" where GNU patch says
   "GNU patch".
 
 ## Requirements

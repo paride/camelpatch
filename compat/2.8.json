@@ -18,7 +18,7 @@
     {
       "feature": "Legacy VCS checkout retrieval",
       "details": "RCS, SCCS, ClearCase, and Perforce file retrieval (-g/--get, PATCH_GET)",
-      "reason": "NonGNU patch is an offline tool; runtime VCS integrations are out of scope",
+      "reason": "Camel patch is an offline tool; runtime VCS integrations are out of scope",
       "affected_reference_tests": [],
       "planned_handling": "Record the exact option handling here when implemented; do not silently claim support"
     }

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# NonGNU patch -- test runner.
+# Camel patch -- test runner.
 #
 # Runs the GNU patch reference test suite from the pinned reference checkout
 # against patch.pl (default) or against a reference patch executable given

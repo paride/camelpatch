@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 #
-# NonGNU patch -- apply a diff file to an original.
+# Camel patch -- apply a diff file to an original.
 #
 # A self-contained Perl implementation of GNU patch, targeting exact
 # observable compatibility with GNU patch 2.8.  See README.md and
 # AGENTS.md for the compatibility contract, exclusions, and testing.
 #
-# Copyright 2026 the NonGNU patch authors.
+# Copyright 2026 the Camel patch authors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ use constant {
 };
 
 use constant PATCH_VERSION => '2.8';
-use constant PRODUCT_NAME  => 'NonGNU patch';
+use constant PRODUCT_NAME  => 'Camel patch';
 
 # Diff format names for the "Looks like ... to me" message, indexed by enum diff.
 use constant DIFF_NAMES => (
@@ -707,7 +707,7 @@ use constant OPTION_HELP => (
     '  -v  --version  Output version info.',
     '  --help  Output this help.',
     '',
-    'Report NonGNU patch bugs to the project maintainers.',
+    'Report Camel patch bugs to the project maintainers.',
 );
 
 sub usage {

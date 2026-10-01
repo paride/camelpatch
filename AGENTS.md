@@ -1,4 +1,4 @@
-# Working on NonGNU patch
+# Working on Camel patch
 
 This file is the maintained guide for contributors and coding agents. Read it
 before making changes. Update it as the implementation, repository layout,
@@ -37,7 +37,7 @@ implemented features and verified results; do not record intentions as facts.
   GNU's practical behavior on test-sized inputs. The `locale`/`clocale`
   quoting styles are approximated with Unicode quotes. GNU's fd-based safe
   path traversal is emulated with lstat-based component checks. The `--help`
-  bug-report line differs on purpose (NonGNU project), as does the product
+  bug-report line differs on purpose (Camel patch project), as does the product
   name in `--version`.
 - The initial environment has GNU patch 2.8, GNU diffutils 3.12, ed, and Perl
   5.42.3. Recheck tool versions when working in another environment. Perl
@@ -56,7 +56,7 @@ Update this section when these facts change.
 ## Mission and compatibility contract
 
 Implement a readable, idiomatic Perl replacement for GNU patch. The executable
-is named `patch.pl`, and its product name is **NonGNU patch**.
+is named `patch.pl`, and its product name is **Camel patch**.
 
 The target is full observable compatibility with the selected GNU patch release,
 subject to the explicit exclusions below. This includes command-line parsing,
@@ -66,7 +66,7 @@ Passing the GNU reference suite is necessary but does not establish full compati
 Use the selected release's source, documented behavior, and reference executable
 to investigate behavior beyond the suite.
 
-- Replace product branding such as `GNU patch` with `NonGNU patch`, including
+- Replace product branding such as `GNU patch` with `Camel patch`, including
   `--version`. The initial compatibility version is 2.8.
 - Preserve exit statuses: 0 for success, 1 for unapplied hunks or merge conflicts,
   and 2 for serious trouble, following GNU's behavior in each case.
@@ -266,7 +266,7 @@ merely a submodule update:
 5. Implement new features and changed observable behavior. Ask before skipping new
    legacy features or changing established scope. Do not carry exclusions forward
    without checking their applicability.
-6. Update NonGNU's compatibility version, help where affected, README, and adapted
+6. Update Camel patch's compatibility version, help where affected, README, and adapted
    code notices. Verify LICENSE still matches the reference COPYING.
 7. Iterate through affected tests and then the full suite. Add differential cases
    for new or changed behavior that the GNU reference tests do not cover.
