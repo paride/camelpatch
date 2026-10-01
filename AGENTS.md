@@ -11,14 +11,34 @@ implemented features and verified results; do not record intentions as facts.
 - Implemented so far: `AGENTS.md`, `LICENSE` (verbatim GNU `COPYING`),
   `README.md`, compatibility manifest `compat/2.8.json`, GNU reference checkout
   `gnu-patch` (Git submodule) pinned to tag `v2.8` = commit
-  `48ceda8200aaf30c3ce42c31cd70ff6087db2425`, and test runner `tools/test.pl`.
-- `patch.pl` does **not** exist yet. The next implementation milestone is CLI
-  behavior and exact unified patch application.
-- The runner was verified against the GNU reference: `perl tools/test.pl
-  --patch /usr/bin/patch` reports **47 PASS, 2 XFAIL** (`context-format`,
-  `dash-o-append`), 0 SKIP, verdict PASS, exit 0. This is the GNU baseline.
-- The launcher generation path (`build/patch`) is implemented but not yet
-  exercised, because `patch.pl` does not exist yet.
+  `48ceda8200aaf30c3ce42c31cd70ff6087db2425`, test runner `tools/test.pl`,
+  and `patch.pl`.
+- `patch.pl` implements: full GNU-style CLI (getopt_long port with
+  permutation, abbreviations, attached arguments, POSIX mode, environment
+  defaults), patch format detection, unified/normal/context/Git-style text
+  patch parsing, filename rules (best-name selection, `/dev/null`, quoted
+  names, dangerous-name rejection, safe-path symlink traversal), hunk
+  application with offsets/fuzz/reversal/whitespace/`-D` output, reject files
+  (unified and context), backups (simple/numbered/existing, `-B/-Y/-z`),
+  dry-run, `-o`/`-r`/`-E`, read-only handling, the CR-stripping heuristic,
+  quoting styles, timestamps and file modes (including Git headers), symlink
+  and hardlink handling, Git queued-output detection, **ed scripts**
+  (restricted-subset interpreter in Perl), and **merge** (port of
+  locate_merge/bestmatch/diffseq with conflict markers).
+- Suite result: `perl tools/test.pl` reports **47 PASS, 2 XFAIL**
+  (`context-format`, `dash-o-append`), 0 FAIL, 0 SKIP, verdict PASS, exit 0 --
+  matching the recorded GNU baseline. The launcher (`build/patch`) is
+  exercised by this and preserves `$0` for program-name diagnostics.
+- Not yet verified: Perl 5.22.1 (not provisioned); the suite has been run on
+  Perl 5.42.3 only.
+- Porting decisions worth review: GNU's merge leaves the diffseq
+  `too_expensive` heuristic uninitialized in C; the Perl port pins it to a
+  large constant (effectively disabling the give-up path) and this matches
+  GNU's practical behavior on test-sized inputs. The `locale`/`clocale`
+  quoting styles are approximated with Unicode quotes. GNU's fd-based safe
+  path traversal is emulated with lstat-based component checks. The `--help`
+  bug-report line differs on purpose (NonGNU project), as does the product
+  name in `--version`.
 - The initial environment has GNU patch 2.8, GNU diffutils 3.12, ed, and Perl
   5.42.3. Recheck tool versions when working in another environment. Perl
   5.22.1 has not yet been provisioned.
@@ -26,6 +46,10 @@ implemented features and verified results; do not record intentions as facts.
   failures `context-format` and `dash-o-append`; the Haiku-only XFAIL for
   `preserve-mode-and-timestamp` does not apply on Linux; no GNU reference test
   exercises legacy VCS retrieval, so that exclusion affects no tests.
+- Remaining verification gaps for final acceptance: differential tests for
+  behavior outside the suite (option parsing corners, prompts, `Prereq:`,
+  environment variables), Perl 5.22.1 run, and a scan of GNU behaviors not
+  exercised by the suite.
 
 Update this section when these facts change.
 
@@ -89,7 +113,7 @@ to investigate behavior beyond the suite.
 
 ```text
 AGENTS.md                  maintained contributor and agent guide
-patch.pl                   complete runtime implementation (not yet written)
+patch.pl                   complete runtime implementation
 LICENSE                    verbatim GNU GPL license text
 README.md                  purpose, usage, dependencies, testing, exclusions
 .gitmodules                GNU reference repository location
@@ -101,8 +125,7 @@ build/                     ignored scratch area, created by the test runner
 ```
 
 Implemented: `AGENTS.md`, `LICENSE`, `README.md`, `.gitmodules`,
-`compat/2.8.json`, `tools/test.pl`, `gnu-patch`. Planned: `patch.pl`
-and `tests/`.
+`compat/2.8.json`, `tools/test.pl`, `gnu-patch`, `patch.pl`. Planned: `tests/`.
 
 The runner ignores `build/`: it writes per-test logs to `build/logs/<target>/`
 and runs tests in scratch directories under `build/work.<pid>` (removed after
@@ -181,7 +204,7 @@ Verified behavior of `tools/test.pl`:
 - In default mode it generates `build/patch`, a Perl launcher that `do`s
   `patch.pl` so `$0` (hence program-name diagnostics) matches the invoked
   program name, which GNU reference expectations such as `bad-usage` rely on.
-  That path is not yet exercised because `patch.pl` does not exist.
+  This path is exercised by the suite run and matches the GNU baseline.
 - Establish the GNU baseline with `--patch /usr/bin/patch`; recorded baseline:
   47 PASS, 2 XFAIL, 0 SKIP, verdict PASS.
 
