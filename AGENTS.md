@@ -7,17 +7,25 @@ implemented features and verified results; do not record intentions as facts.
 
 ## Current state
 
-- The initial compatibility target is **GNU patch v2.8**.
-- This repository currently contains this guide only. There is no implementation,
-  upstream checkout, compatibility manifest, test runner, README, or LICENSE yet.
-- No compatibility tests have been run against a project implementation.
-- Planning research inspected GNU patch v2.8 source and tests. Its suite lists
-  **49 test scripts**, with `context-format` and `dash-o-append` as expected
-  failures. Some expectations depend on the platform.
-- The initial environment has GNU patch 2.8 and Perl 5.42.3. Recheck tool versions
-  when working in another environment. Perl 5.22.1 has not yet been provisioned.
-- The exact upstream tag commit has not yet been recorded. Resolve and verify it
-  when adding the submodule.
+- The compatibility target is **GNU patch v2.8**.
+- Implemented so far: `AGENTS.md`, `LICENSE` (verbatim GNU `COPYING`),
+  `README.md`, compatibility manifest `compat/2.8.json`, GNU reference checkout
+  `gnu-patch` (Git submodule) pinned to tag `v2.8` = commit
+  `48ceda8200aaf30c3ce42c31cd70ff6087db2425`, and test runner `tools/test.pl`.
+- `patch.pl` does **not** exist yet. The next implementation milestone is CLI
+  behavior and exact unified patch application.
+- The runner was verified against the GNU reference: `perl tools/test.pl
+  --patch /usr/bin/patch` reports **47 PASS, 2 XFAIL** (`context-format`,
+  `dash-o-append`), 0 SKIP, verdict PASS, exit 0. This is the GNU baseline.
+- The launcher generation path (`build/patch`) is implemented but not yet
+  exercised, because `patch.pl` does not exist yet.
+- The initial environment has GNU patch 2.8, GNU diffutils 3.12, ed, and Perl
+  5.42.3. Recheck tool versions when working in another environment. Perl
+  5.22.1 has not yet been provisioned.
+- Test-suite facts verified from the pinned checkout: 49 test scripts; expected
+  failures `context-format` and `dash-o-append`; the Haiku-only XFAIL for
+  `preserve-mode-and-timestamp` does not apply on Linux; no GNU reference test
+  exercises legacy VCS retrieval, so that exclusion affects no tests.
 
 Update this section when these facts change.
 
@@ -30,7 +38,7 @@ The target is full observable compatibility with the selected GNU patch release,
 subject to the explicit exclusions below. This includes command-line parsing,
 environment variables, patch parsing and application, prompts, diagnostics,
 stdout/stderr routing, exit statuses, backups, rejects, and filesystem effects.
-Passing the upstream suite is necessary but does not establish full compatibility.
+Passing the GNU reference suite is necessary but does not establish full compatibility.
 Use the selected release's source, documented behavior, and reference executable
 to investigate behavior beyond the suite.
 
@@ -74,34 +82,38 @@ to investigate behavior beyond the suite.
   The external `ed` executable must not be required by `patch.pl`.
 - Add `LICENSE` by copying the target GNU release's `COPYING` verbatim. GNU patch
   v2.8 uses **GPL-3.0-or-later** licensing terms; use the same terms for this project.
-- Preserve applicable copyright and license notices for adapted upstream code or
-  test material. Keep product branding distinct from legal attribution.
+- Preserve applicable copyright and license notices for material adapted from
+  the GNU reference. Keep product branding distinct from legal attribution.
 
 ## Repository layout
 
-The following layout is planned, not yet implemented:
-
 ```text
 AGENTS.md                  maintained contributor and agent guide
-patch.pl                   complete runtime implementation
-LICENSE                    verbatim upstream GPL license text
+patch.pl                   complete runtime implementation (not yet written)
+LICENSE                    verbatim GNU GPL license text
 README.md                  purpose, usage, dependencies, testing, exclusions
-.gitmodules                upstream repository location
+.gitmodules                GNU reference repository location
 compat/2.8.json            target revision, expectations, approved exclusions
-tools/test.pl              project-owned upstream test runner
-tests/                     additional regression and differential tests
-upstream/gnu-patch/        upstream Git submodule pinned to the target release
+tools/test.pl              project-owned test runner
+tests/                     additional regression and differential tests (planned)
+gnu-patch/                 GNU patch reference checkout pinned to the target release
+build/                     ignored scratch area, created by the test runner
 ```
 
-Use **https://git.savannah.gnu.org/git/patch.git** for the upstream submodule.
-Pin it to the exact commit identified by `v2.8`, not a moving branch. Record both
-the tag and resolved commit in the compatibility manifest. Keep upstream files
-unmodified; project-owned adapters belong outside the submodule.
+Implemented: `AGENTS.md`, `LICENSE`, `README.md`, `.gitmodules`,
+`compat/2.8.json`, `tools/test.pl`, `gnu-patch`. Planned: `patch.pl`
+and `tests/`.
 
-Generated launchers, adapters, logs, and scratch files should live in an ignored
-build/test directory. Record its actual location here when the runner exists.
+The runner ignores `build/`: it writes per-test logs to `build/logs/<target>/`
+and runs tests in scratch directories under `build/work.<pid>` (removed after
+the run unless `--keep`). Generated launcher: `build/patch`.
 
-Compatibility manifests should record target provenance, upstream expected
+Use **https://git.savannah.gnu.org/git/patch.git** for the GNU reference
+checkout. Pin it to the exact commit identified by `v2.8`, not a moving branch. Record both
+the tag and resolved commit in the compatibility manifest. Keep GNU reference files
+unmodified; project-owned adapters belong outside the checkout.
+
+Compatibility manifests should record target provenance, GNU reference expected
 failures, and approved exclusions with reasons and affected test cases. Retain
 older manifests for provenance. Historical project releases preserve older
 implementations; simultaneous runtime compatibility modes are not required.
@@ -124,38 +136,54 @@ implementations; simultaneous runtime compatibility modes are not required.
 
 ## Testing workflow
 
-### Upstream harness integration
+### GNU reference harness integration
 
 GNU v2.8's tests source `tests/test-lib.sh`. Its `use_local_patch` function accepts
-a `PATCH` override. This lets the runner execute upstream shell tests against
+a `PATCH` override. This lets the runner execute the GNU reference shell tests against
 `patch.pl` without compiling GNU patch or bootstrapping gnulib.
 
 - Supply the required `srcdir` and `abs_top_builddir` values and isolated scratch
-  directories. Keep logs outside directories removed by upstream cleanup traps.
+  directories. Keep logs outside directories removed by GNU reference cleanup traps.
 - Use a launcher when selecting a Perl interpreter. Verify executable-path
-  diagnostics against upstream expectations rather than broadly filtering them.
+  diagnostics against GNU reference expectations rather than broadly filtering them.
 - Install `ed` in the complete test environment: `ed-style` requires it, and
   `crlf-handling` and `need-filename` contain ed sections gated by `have_ed`.
   Do not disable those sections merely because our runtime implements ed itself.
 - Derive the test inventory and expected failures from the pinned release, with
   any platform-specific expectations handled explicitly.
-- Verify the checked-out upstream commit matches the requested manifest. Fail
+- Verify the checked-out GNU reference commit matches the requested manifest. Fail
   clearly on a mismatch; do not silently test against a different release.
 
-### Runner interface
-
-These are **proposed commands, not yet implemented or verified**:
+### Runner interface (verified)
 
 ```sh
-perl tools/test.pl
-perl tools/test.pl --test asymmetric-hunks
+git submodule update --init
+perl tools/test.pl                          # test patch.pl via build/patch launcher
+perl tools/test.pl --patch /usr/bin/patch   # GNU reference baseline
+perl tools/test.pl --test asymmetric-hunks  # selection accepts repeats and commas
+perl tools/test.pl --list                   # inventory with expected failures
 perl tools/test.pl --perl /path/to/perl-5.22.1
-perl tools/test.pl --patch /path/to/gnu-patch-2.8
 ```
 
-Replace this section with the actual verified interface and setup commands when
-the tooling is available. Keep testing usable locally and suitable for future
-GitHub Actions; adding CI is a future task, not part of the initial setup request.
+Verified behavior of `tools/test.pl`:
+
+- Reads the newest `compat/<version>.json` (or `--manifest`), verifies the
+  submodule checkout matches the manifest commit, and cross-checks expected
+  failures against the GNU reference `tests/Makefile.am`; mismatches abort the run.
+- Derives the inventory from the GNU reference `Makefile.am`; runs each script with
+  `/bin/sh`, `srcdir` pointing at the pinned tests directory, a fresh scratch
+  `abs_top_builddir`, and `PATCH` set to the target under test.
+- Labels results PASS, FAIL, SKIP, XFAIL, XPASS; exit 77 from a script means
+  SKIP with the missing prerequisite reported. Per-test logs are kept under
+  `build/logs/<target>/<test>.log`.
+- Exit status is 0 only with no FAIL, no XPASS, and no SKIP; a skip means
+  incomplete coverage. `--timeout` (default 300 s) kills runaway tests.
+- In default mode it generates `build/patch`, a Perl launcher that `do`s
+  `patch.pl` so `$0` (hence program-name diagnostics) matches the invoked
+  program name, which GNU reference expectations such as `bad-usage` rely on.
+  That path is not yet exercised because `patch.pl` does not exist.
+- Establish the GNU baseline with `--patch /usr/bin/patch`; recorded baseline:
+  47 PASS, 2 XFAIL, 0 SKIP, verdict PASS.
 
 ### Result policy and iteration
 
@@ -164,7 +192,7 @@ GitHub Actions; adding CI is a future task, not part of the initial setup reques
   dependency is never a pass; report incomplete coverage.
 - Record every feature skip with a reason. Preserve supported coverage within
   mixed-feature tests instead of indiscriminately skipping whole scripts.
-- Apply upstream expected-failure declarations only where justified for the
+- Apply GNU reference expected-failure declarations only where justified for the
   target platform. Compare with the GNU baseline; investigate unexpected passes
   and unexpected failures rather than hiding them.
 - Never add an exclusion, weaken an assertion, or broadly normalize output just
@@ -174,7 +202,7 @@ GitHub Actions; adding CI is a future task, not part of the initial setup reques
 - Implement a coherent feature group, run relevant tests, investigate differences,
   fix the implementation, and rerun affected tests. Run the full suite at milestone
   boundaries and at completion to catch interactions and regressions.
-- Add meaningful differential tests for gaps in the upstream suite, particularly
+- Add meaningful differential tests for gaps in the GNU reference suite, particularly
   option parsing, environment behavior, prompts, `Prereq:`, `-D`, and ed edge cases.
   Compare statuses, stdout/stderr, contents, backups, rejects, links, directory
   structure, and relevant metadata in equivalent isolated environments.
@@ -187,7 +215,7 @@ GitHub Actions; adding CI is a future task, not part of the initial setup reques
 ## Initial implementation sequence
 
 1. Create this guide (the current step).
-2. Add and verify the pinned upstream submodule, LICENSE, compatibility manifest,
+2. Add and verify the pinned GNU reference checkout, LICENSE, compatibility manifest,
    brief README, and test infrastructure. Establish the GNU baseline.
 3. Implement CLI behavior and exact unified patch application.
 4. Implement offsets, fuzz, reversal, whitespace handling, and multiple hunks.
@@ -207,18 +235,18 @@ merely a submodule update:
 
 1. Read this guide and inspect the working tree. Identify the currently implemented
    target, existing exclusions, and outstanding verification gaps.
-2. Fetch the upstream release tag, resolve its exact commit, and inspect NEWS,
+2. Fetch the GNU release tag, resolve its exact commit, and inspect NEWS,
    source changes, test changes, and licensing changes against the previous target.
-3. Update the upstream submodule pin and add the new version's compatibility
+3. Update the GNU reference checkout pin and add the new version's compatibility
    manifest. Review inherited exclusions and changed expected failures explicitly.
 4. Establish the new GNU reference baseline in the target Linux environment.
 5. Implement new features and changed observable behavior. Ask before skipping new
    legacy features or changing established scope. Do not carry exclusions forward
    without checking their applicability.
 6. Update NonGNU's compatibility version, help where affected, README, and adapted
-   code notices. Verify LICENSE still matches upstream COPYING.
+   code notices. Verify LICENSE still matches the reference COPYING.
 7. Iterate through affected tests and then the full suite. Add differential cases
-   for new or changed behavior that the upstream tests do not cover.
+   for new or changed behavior that the GNU reference tests do not cover.
 8. Verify with Perl 5.22.1 and a current Perl. The minimum does not rise implicitly
    with a new GNU release; discuss any proposed change with the user.
 9. Update this guide with the actual repository state, target revision, working

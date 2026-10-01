@@ -1,0 +1,35 @@
+{
+  "manifest_version": 1,
+  "target": {
+    "product": "GNU patch",
+    "release": "2.8",
+    "tag": "v2.8",
+    "commit": "48ceda8200aaf30c3ce42c31cd70ff6087db2425",
+    "reference_repository": "https://git.savannah.gnu.org/git/patch.git",
+    "reference_checkout": "gnu-patch",
+    "reference_tests_dir": "gnu-patch/tests",
+    "reference_source_tarball": "https://ftp.gnu.org/gnu/patch/patch-2.8.tar.xz"
+  },
+  "reference_expected_failures": {
+    "context-format": "listed in the GNU reference tests/Makefile.am XFAIL_TESTS",
+    "dash-o-append": "listed in the GNU reference tests/Makefile.am XFAIL_TESTS"
+  },
+  "approved_exclusions": [
+    {
+      "feature": "Legacy VCS checkout retrieval",
+      "details": "RCS, SCCS, ClearCase, and Perforce file retrieval (-g/--get, PATCH_GET)",
+      "reason": "NonGNU patch is an offline tool; runtime VCS integrations are out of scope",
+      "affected_reference_tests": [],
+      "planned_handling": "Record the exact option handling here when implemented; do not silently claim support"
+    }
+  ],
+  "platform_notes": [
+    "The GNU reference additionally marks preserve-mode-and-timestamp XFAIL on Haiku only; Linux is unaffected."
+  ],
+  "test_environment": {
+    "reference_implementation": "/usr/bin/patch (GNU patch 2.8)",
+    "current_perl": "5.42.3",
+    "minimum_perl": "5.22.1 (not yet provisioned)",
+    "test_only_dependencies": ["GNU diff", "ed", "sed", "stat", "cat", "chmod", "touch"]
+  }
+}
