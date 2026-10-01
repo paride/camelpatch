@@ -102,7 +102,8 @@ push @cases, {
 };
 push @cases, {
     name => 'prompt.reverse-no-apply-yes', args => ['-p0'],
-    stdin => $hunk, tty_input => "n\ny\n", files => { f => "one\n" },
+    stdin => $hunk, tty_input => "n\ny\n", files => { f => "new\n" },
+    stdout_contains => ['Assume -R?', 'Apply anyway?'],
     reference_exit => 1,
 };
 

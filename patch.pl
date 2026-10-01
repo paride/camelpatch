@@ -543,9 +543,6 @@ sub quotearg_buffer {
         goto store_c;
     }
 
-    if ($style eq 'clocale' && $out !~ /\A[A-Za-z0-9_.,+\/-]+\z/) {
-        $force = 1;
-    }
     if ($out eq '' && $shell_always && $elide_outer_quotes) {
         $force = 1;
     }
@@ -554,7 +551,7 @@ sub quotearg_buffer {
         my $forced_style = $style;
         if ($style eq 'shell-escape') { $forced_style = 'shell-escape-always' }
         elsif ($style eq 'shell')     { $forced_style = 'shell-always' }
-        elsif ($style eq 'c-maybe' || $style eq 'clocale') { $forced_style = 'c' }
+        elsif ($style eq 'c-maybe') { $forced_style = 'c' }
         return quotearg_buffer($arg, $forced_style);
     }
 
@@ -567,7 +564,7 @@ sub quotearg_buffer {
     }
 
     return "'$out'" if $shell_always && !$elide_outer_quotes;
-    return "\"$out\"" if $style eq 'c' && !$elide_outer_quotes;
+    return "\"$out\"" if ($style eq 'c' || $style eq 'clocale') && !$elide_outer_quotes;
     return $out;
 }
 

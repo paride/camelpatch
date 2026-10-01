@@ -45,6 +45,17 @@ for my $style (qw(locale clocale)) {
         stdin => "--- \"a b\"\n+++ \"a b\"\n@@ -1 +1 @@\n-one\n+two\n",
     };
 }
+for my $style (qw(locale clocale)) {
+    for my $filename ('plain-name.diff', 'name with spaces.diff') {
+        push @cases, {
+            name => "environment.quoting-$style-missing-"
+                . ($filename =~ / / ? 'spaces' : 'plain'),
+            args => ["--quoting-style=$style", '-i', $filename],
+            setup_error => "Can't open patch file",
+            reference_exit => 2, stdin => '',
+        };
+    }
+}
 push @cases, {
     name => 'environment.quoting-invalid-fallback', env => { QUOTING_STYLE => 'invalid' },
     args => ['-p1'], reference_exit => 0, files => { f => "one\n" }, stdin => $patch,

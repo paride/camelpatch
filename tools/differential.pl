@@ -148,6 +148,10 @@ sub setup_tree {
         if (defined $spec->{mtime}) {
             utime($spec->{mtime}, $spec->{mtime}, $path) or die "utime $path: $!\n";
         }
+        if (defined $spec->{mtime_sec} && defined $spec->{mtime_nsec}) {
+            my $mtime = $spec->{mtime_sec} + $spec->{mtime_nsec} / 1_000_000_000;
+            utime($mtime, $mtime, $path) or die "utime $path: $!\n";
+        }
     }
     for my $name (sort keys %{ $case->{symlinks} // {} }) {
         make_path(dirname("$work/$name"));
@@ -348,6 +352,18 @@ sub compare_case {
     }
     if (defined $case->{reference_exit} && $results{reference}{exit} != $case->{reference_exit}) {
         push @differences, "reference exit differs from case sanity check ($case->{reference_exit})";
+    }
+    for my $prompt (@{ $case->{stdout_contains} // [] }) {
+        for my $target (qw(reference camel)) {
+            push @differences, "$target stdout missing expected text: $prompt"
+                if index($results{$target}{stdout}, $prompt) < 0;
+        }
+    }
+    if (defined $case->{setup_error}) {
+        for my $target (qw(reference camel)) {
+            push @differences, "$target stderr missing expected text: $case->{setup_error}"
+                if index($results{$target}{stderr}, $case->{setup_error}) < 0;
+        }
     }
     for my $field (qw(exit signal stdout stderr tree)) {
         if ($json->encode($results{reference}{$field}) ne $json->encode($results{camel}{$field})) {
