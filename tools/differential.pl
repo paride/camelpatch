@@ -370,6 +370,23 @@ sub compare_case {
                 if index($results{$target}{stderr}, $case->{setup_error}) < 0;
         }
     }
+    for my $name (sort keys %{ $case->{expected_files} // {} }) {
+        my $expected = unpack('H*', $case->{expected_files}{$name});
+        for my $target (qw(reference camel)) {
+            my $entry = $results{$target}{tree}{$name};
+            if (!$entry || $entry->{type} ne 'file'
+                || $entry->{content_hex} ne $expected) {
+                push @differences, "$target expected file differs: $name";
+            }
+        }
+    }
+    for my $name (@{ $case->{expected_absent} // [] }) {
+        for my $target (qw(reference camel)) {
+            if (exists $results{$target}{tree}{$name}) {
+                push @differences, "$target expected path to be absent: $name";
+            }
+        }
+    }
     for my $field (qw(exit signal stdout stderr tree)) {
         if ($json->encode($results{reference}{$field}) ne $json->encode($results{camel}{$field})) {
             push @differences, "$field differs";
