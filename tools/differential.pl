@@ -152,6 +152,11 @@ sub setup_tree {
             my $mtime = $spec->{mtime_sec} + $spec->{mtime_nsec} / 1_000_000_000;
             utime($mtime, $mtime, $path) or die "utime $path: $!\n";
         }
+        if (defined $spec->{uid} || defined $spec->{gid}) {
+            my $uid = $spec->{uid} // -1;
+            my $gid = $spec->{gid} // -1;
+            chown($uid, $gid, $path) == 1 or die "chown $path: $!\n";
+        }
     }
     for my $name (sort keys %{ $case->{symlinks} // {} }) {
         make_path(dirname("$work/$name"));

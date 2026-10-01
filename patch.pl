@@ -4069,11 +4069,24 @@ sub set_file_attributes {
         my $uid = $> == $st->{uid} ? -1 : $st->{uid};
         my $egid = $) + 0;
         my $gid = $egid == $st->{gid} ? -1 : $st->{gid};
-        if (($uid != -1 || $gid != -1)
-            && !chown($uid, $gid, $to)
-            && !($!{EPERM} || $!{EACCES})) {
-            pfatal("Failed to set the %s of %s %s",
-                   $uid == -1 ? 'owner' : 'owning group', $kind, quotearg($to));
+        if ($uid != -1 || $gid != -1) {
+            if (!chown($uid, $gid, $to)) {
+                my $error = 0 + $!;
+                if (($error == EPERM || $error == EACCES) && $uid != -1) {
+                    $uid = -1;
+                    if (chown($uid, $gid, $to)) {
+                        $error = 0;
+                    }
+                    else {
+                        $error = 0 + $!;
+                    }
+                }
+                if ($error && $error != EPERM && $error != EACCES) {
+                    pfatal("Failed to set the %s of %s %s",
+                           $uid == -1 ? 'owner' : 'owning group',
+                           $kind, quotearg($to));
+                }
+            }
         }
     }
     if ($attr =~ /mode/) {
