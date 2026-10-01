@@ -1971,7 +1971,12 @@ sub intuit_diff_type {
                 }
                 $k++;
             }
-            $REVISION = $k ? substr($word, 0, $k) : undef;
+            if ($k) {
+                $REVISION = substr($word, 0, $k);
+            }
+            else {
+                undef $REVISION;
+            }
         }
         elsif (substr($PATCHBUF, $s, 11) eq 'diff --git ') {
             if ($extended_headers) {
@@ -4446,11 +4451,16 @@ sub do_ed_script {
             if ($addr < 0 || $addr > $count) { $failed = 1; last }
             # Collect the replacement text from the script.
             @text_lines = ();
+            my $terminated = 0;
             while ($i <= $#script && $script[$i] ne ".\n") {
                 push @text_lines, $script[$i];
                 $i++;
             }
-            $i++ if $i <= $#script;   # skip the "." terminator
+            if ($i <= $#script) {
+                $i++;                  # skip the "." terminator
+                $terminated = 1;
+            }
+            if (!$terminated) { $failed = 1; last }
             splice(@lines, $addr + 1, 0, @text_lines);
             $current = $addr + scalar(@text_lines);
         }
@@ -4459,11 +4469,16 @@ sub do_ed_script {
             my $to = defined $addr2 ? $addr2 : $from;
             if ($from < 1 || $to < $from || $to > $count) { $failed = 1; last }
             @text_lines = ();
+            my $terminated = 0;
             while ($i <= $#script && $script[$i] ne ".\n") {
                 push @text_lines, $script[$i];
                 $i++;
             }
-            $i++ if $i <= $#script;
+            if ($i <= $#script) {
+                $i++;
+                $terminated = 1;
+            }
+            if (!$terminated) { $failed = 1; last }
             splice(@lines, $from, $to - $from + 1, @text_lines);
             $current = $to - ($to - $from + 1) + scalar(@text_lines);
         }
@@ -4491,7 +4506,10 @@ sub do_ed_script {
             last;
         }
     }
-    fatal('%s FAILED', 'ed') if $failed;
+    if ($failed) {
+        say("?\n");
+        fatal('%s FAILED', 'ed');
+    }
 
     # Write the buffer back to the output file.
     open my $out, '>:raw', $output_path
