@@ -33,17 +33,20 @@ implemented features and verified results; do not record intentions as facts.
   matching the recorded GNU baseline. The launcher (`build/patch`) is
   exercised by this and preserves `$0` for program-name diagnostics.
 - Differential result: `perl tools/differential.pl --reference /usr/bin/patch`
-  reports **77 PASS, 0 FAIL, 0 SKIP**, exit 0 on Perl 5.42.3. The cases cover
+  reports **88 PASS, 0 FAIL, 0 SKIP**, exit 0 on Perl 5.42.3. The cases cover
   CLI parsing and environment variables and uncovered defects in short-option
   clusters, permutation of separate arguments, `-d`, unknown short options,
   backup-style abbreviations/diagnostics, and empty environment precedence;
   these were fixed without changing the GNU reference suite. Added coverage
   checks fractional timestamp matching and `-T`, `Prereq:`, `-D`, ed failure
-  edges, PTY prompt responses, and `locale`/`clocale` quoting under C and C.utf8.
+  edges, PTY prompt responses, `locale`/`clocale` quoting under C and C.utf8,
+  and multi-file backup/reject/dry-run/output workflows.
 - `patch.pl` uses Time::HiRes fractional `stat` results and splits timestamp
   seconds/nanoseconds explicitly; core stat has no separate nanosecond fields.
 - Differential PTY cases use the test-only IO::Pty module, which is not required
   by `patch.pl` at runtime.
+- `tests/ownership-fallback.sh` checks GNU's group-only chown retry with a
+  controlled foreign-owner fixture; it requires `setpriv` and passwordless sudo.
 - Code-quality review completed in focused commits: byte-stream reads use a
   shared `read_all` helper with large-input regression cases and copies use a
   bounded-memory stream helper; hunk storage no longer simulates C allocation or

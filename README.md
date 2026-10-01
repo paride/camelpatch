@@ -110,6 +110,11 @@ run; runner/prerequisite errors exit 2. GNU suite XFAIL declarations do not appl
 to these comparisons. See `perl tools/differential.pl --help` for selection and
 timeout options.
 
+The ownership-preservation fallback regression is separate from the differential
+suite: `sh tests/ownership-fallback.sh` requires `setpriv` and passwordless sudo
+to construct a foreign-owner file while retaining a group the test user belongs
+to.
+
 ## License
 
 Licensed under GPL-3.0-or-later; see `LICENSE`. Camel patch is copyright

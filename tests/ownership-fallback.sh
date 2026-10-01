@@ -35,9 +35,10 @@ for target in reference camel; do
 done
 
 (cd "$tmp/reference" && sudo -n setpriv --reuid=65534 --regid=65534 --groups=113 \
-    /usr/bin/patch -p0 < change.diff)
+    /bin/sh -c 'exec /usr/bin/patch -p0 < "$1"' sh "$tmp/reference/change.diff")
 (cd "$tmp/camel" && sudo -n setpriv --reuid=65534 --regid=65534 --groups=113 \
-    /usr/bin/perl "$tmp/patch.pl" -p0 < change.diff)
+    /bin/sh -c 'exec /usr/bin/perl "$1" -p0 < "$2"' sh \
+    "$tmp/patch.pl" "$tmp/camel/change.diff")
 
 for target in reference camel; do
     owner=$(stat -c '%u:%g' "$tmp/$target/f")
