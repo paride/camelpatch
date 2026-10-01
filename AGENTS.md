@@ -31,11 +31,17 @@ implemented features and verified results; do not record intentions as facts.
   matching the recorded GNU baseline. The launcher (`build/patch`) is
   exercised by this and preserves `$0` for program-name diagnostics.
 - Differential result: `perl tools/differential.pl --reference /usr/bin/patch`
-  reports **50 PASS, 0 FAIL, 0 SKIP**, exit 0 on Perl 5.42.3. The cases cover
+  reports **52 PASS, 0 FAIL, 0 SKIP**, exit 0 on Perl 5.42.3. The cases cover
   CLI parsing and environment variables and uncovered defects in short-option
   clusters, permutation of separate arguments, `-d`, unknown short options,
   backup-style abbreviations/diagnostics, and empty environment precedence;
   these were fixed without changing the GNU reference suite.
+- Code-quality review completed and committed in focused changes: byte-stream
+  reads use a shared `read_all` helper with large-input regression cases; hunk
+  storage no longer simulates C allocation/freeing; deferred filesystem queues
+  snapshot stat data and retain unprocessed entries; the GNU-suite runner records
+  signals and classifies timeouts as failures, not XFAILs; short-option metadata
+  is derived from the option table.
 - Runtime compatibility is required with Perl 5.22.1 and newer. Test runners use
   their system Perl. For minimum-version verification, run the test commands in
   a suitable VM or container whose system Perl meets the requirement.
@@ -56,9 +62,9 @@ implemented features and verified results; do not record intentions as facts.
   exercises legacy VCS retrieval, so that exclusion affects no tests.
 - Remaining verification gaps for final acceptance: further CLI/environment
   differential coverage, terminal prompts, `Prereq:`, ed and `-D` edge cases,
-  metadata edge cases, and a scan of GNU behaviors not exercised by either test
-  path. The initial 50 differential cases are not
-  exhaustive coverage.
+  metadata edge cases, minimum system-Perl verification, and a scan of GNU
+  behaviors not exercised by either test path. The initial 52 differential
+  cases are not exhaustive coverage.
 
 Update this section when these facts change.
 
@@ -213,6 +219,9 @@ Verified behavior of `tools/test.pl`:
 - Labels results PASS, FAIL, SKIP, XFAIL, XPASS; exit 77 from a script means
   SKIP with the missing prerequisite reported. Per-test logs are kept under
   `build/logs/<target>/<test>.log`.
+- Records child exit status and signal separately. Timeouts, signals, and
+  runner setup failures are FAIL/ERROR results, never XFAIL; only a normal exit
+  status of 1 can satisfy a GNU expected-failure declaration.
 - Exit status is 0 only with no FAIL, no XPASS, and no SKIP; a skip means
   incomplete coverage. `--timeout` (default 300 s) kills runaway tests.
 - In default mode it generates `build/patch`, a Perl launcher that `do`s

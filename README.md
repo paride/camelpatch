@@ -80,7 +80,8 @@ perl tools/differential.pl --case cli.short-clusters
 perl tools/differential.pl --list
 ```
 
-The initial 50 cases cover CLI parsing and environment-variable behavior.
+The initial 52 cases cover CLI parsing and environment-variable behavior,
+including large patch input from stdin and `-i`.
 The reference executable must report GNU patch 2.8, matching the compatibility
 manifest. Each case runs both implementations in equivalent isolated directories
 and compares exit status, stdout, stderr, file bytes, directory structure, modes,
