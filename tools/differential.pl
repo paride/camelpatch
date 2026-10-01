@@ -158,6 +158,15 @@ sub setup_tree {
     }
 }
 
+sub child_runner_error {
+    my ($dir, $message) = @_;
+    if (open my $fh, '>', "$dir/runner-error.txt") {
+        print {$fh} "$message\n";
+        close $fh;
+    }
+    POSIX::_exit(125);
+}
+
 sub run_process {
     my ($command, $case, $dir) = @_;
     my $work = "$dir/work";
@@ -166,8 +175,12 @@ sub run_process {
     my $pid = fork;
     die "fork: $!\n" unless defined $pid;
     if (!$pid) {
-        setsid() >= 0 or die "setsid: $!\n";
-        chdir $work or die "chdir $work: $!\n";
+        open STDOUT, '>:raw', "$dir/stdout"
+            or child_runner_error($dir, "open stdout: $!");
+        open STDERR, '>:raw', "$dir/stderr"
+            or child_runner_error($dir, "open stderr: $!");
+        setsid() >= 0 or child_runner_error($dir, "setsid: $!");
+        chdir $work or child_runner_error($dir, "chdir $work: $!");
         umask 0022;
         delete @ENV{qw(PATCH_GET POSIXLY_CORRECT QUOTING_STYLE SIMPLE_BACKUP_SUFFIX
                        VERSION_CONTROL PATCH_VERSION_CONTROL TMPDIR TMP TEMP GDB
@@ -177,11 +190,11 @@ sub run_process {
             if (defined $case->{env}{$key}) { $ENV{$key} = $case->{env}{$key} }
             else { delete $ENV{$key} }
         }
-        open STDIN, '<:raw', "$dir/stdin" or die "stdin: $!\n";
-        open STDOUT, '>:raw', "$dir/stdout" or die "stdout: $!\n";
-        open STDERR, '>:raw', "$dir/stderr" or die "stderr: $!\n";
-        exec { $command->[0] } @$command, @{ $case->{args} // [] };
-        die "exec $command->[0]: $!\n";
+        open STDIN, '<:raw', "$dir/stdin"
+            or child_runner_error($dir, "open stdin: $!");
+        if (!exec { $command->[0] } @$command, @{ $case->{args} // [] }) {
+            child_runner_error($dir, "exec $command->[0]: $!");
+        }
     }
     my $deadline = time() + $timeout;
     my $status;
@@ -203,6 +216,10 @@ sub run_process {
     }
     my $result = { exit => $status >> 8, signal => $status & 127,
                    timed_out => $timed_out };
+    if (-f "$dir/runner-error.txt") {
+        $result->{runner_error} = read_bytes("$dir/runner-error.txt");
+        chomp $result->{runner_error};
+    }
     write_bytes("$dir/status.json", JSON::PP->new->canonical->pretty->encode($result));
     return $result;
 }
@@ -266,6 +283,8 @@ sub compare_case {
     }
     my @differences;
     for my $target (qw(reference camel)) {
+        die "$target runner setup failed: $results{$target}{runner_error}\n"
+            if $results{$target}{runner_error};
         push @differences, "$target timed out" if $results{$target}{timed_out};
         push @differences, "$target terminated by signal $results{$target}{signal}"
             if $results{$target}{signal};
