@@ -125,7 +125,7 @@ my $PFP_POS;                   # read offset into $PATCHFILE_DATA
 
 # Per-patch parse state; see gnu-patch/src/pch.c for the C originals.
 my $PATCHBUF;                  # current line from the patch file
-my $HUNKMAX = 125;             # emulated hunk array limit
+my $HUNK_CAPACITY = 125;       # parser boundary used by context-format handling
 my (@P_LINE, @P_LEN, @P_CHAR);
 my ($P_FIRST, $P_NEWFIRST, $P_PTRN_LINES, $P_REPL_LINES, $P_MAX);
 my $P_END = -1;
@@ -135,8 +135,6 @@ my $P_RFC934_NESTING;
 my $P_HUNK_BEG;
 my $P_C_FUNCTION;
 my $P_GIT_DIFF;
-my $P_EFAKE = -1;
-my $P_BFAKE = -1;
 my @P_NAME;
 my @P_TIMESTR;
 my @P_TIMESTAMP;               # [seconds, nanoseconds], [-1, -1] when unknown
@@ -1082,6 +1080,13 @@ sub re_patch {
     $P_MAX = 0;
     $P_INDENT = 0;
     $P_STRIP_TRAILING_CR = 0;
+}
+
+sub ensure_hunk_capacity {
+    my ($needed) = @_;
+    while ($needed + 1 >= $HUNK_CAPACITY) {
+        $HUNK_CAPACITY = int($HUNK_CAPACITY * 1.5) + 1;
+    }
 }
 
 sub open_patch_file {
@@ -2335,16 +2340,15 @@ sub another_hunk {
     my ($difftype, $rev) = @_;
     my $context = 0;
 
-    # Free the previous hunk's lines.
-    while ($P_END >= 0) {
-        if ($P_END == $P_EFAKE) { $P_END = $P_BFAKE }
-        else { $P_LINE[$P_END] = undef }
-        $P_END--;
-    }
-    $P_EFAKE = -1;
+    # Perl owns the arrays; discard previous hunk state without simulating C
+    # allocation/free bookkeeping.
+    @P_LINE = ();
+    @P_LEN = ();
+    @P_CHAR = ();
+    $P_END = -1;
     $P_C_FUNCTION = undef;
 
-    $P_MAX = $HUNKMAX;
+    $P_MAX = $HUNK_CAPACITY;
     if ($difftype == CONTEXT_DIFF || $difftype == NEW_CONTEXT_DIFF) {
         return another_hunk_context($difftype, $rev, $context);
     }
@@ -2405,7 +2409,7 @@ sub another_hunk_context {
         $P_END++;
         fatal("unterminated hunk starting at line %d; giving up at line %d: %s",
               $P_HUNK_BEG, $P_INPUT_LINE, $PATCHBUF)
-            if $P_END == $HUNKMAX;
+            if $P_END == $HUNK_CAPACITY;
         $P_CHAR[$P_END] = substr($PATCHBUF, 0, 1);
         $P_LEN[$P_END] = 0;
         $P_LINE[$P_END] = undef;
@@ -2446,7 +2450,8 @@ sub another_hunk_context {
                 $P_FIRST = 1;
             }
             $P_MAX = $P_PTRN_LINES + 6;
-            $P_MAX = $HUNKMAX while $P_MAX + 1 >= $HUNKMAX;
+            ensure_hunk_capacity($P_MAX);
+            $P_MAX = $HUNK_CAPACITY;
         }
         elsif ($c0 eq '-') {
             if (substr($PATCHBUF, 1, 1) ne '-') { goto change_line }
@@ -2501,7 +2506,7 @@ sub another_hunk_context {
                 $P_NEWFIRST = 1;
             }
             $P_MAX = $P_REPL_LINES + $P_END;
-            $P_MAX = $HUNKMAX while $P_MAX + 1 >= $HUNKMAX;
+            ensure_hunk_capacity($P_MAX);
             if ($P_REPL_LINES != $ptrn_copiable
                 && ($P_PREFIX_CONTEXT != 0
                     || $context != 0
@@ -2666,8 +2671,6 @@ sub another_hunk_context {
 
     # If there were omitted context lines, fill them in now.
     if ($fillcnt) {
-        $P_BFAKE = $filldst;
-        $P_EFAKE = $filldst + $fillcnt - 1;
         while ($fillcnt-- > 0) {
             while ($fillsrc <= $P_END && $fillsrc != $repl_beginning
                    && $P_CHAR[$fillsrc] ne ' ') {
@@ -2962,11 +2965,6 @@ sub pch_swap {
     if ($tp_char[$i] eq "\n") {
         $blankline = 1;
         $i++;
-    }
-    if ($P_EFAKE >= 0) {
-        my $n = $P_EFAKE <= $i ? $P_END - $P_PTRN_LINES : -$i;
-        $P_EFAKE += $n;
-        $P_BFAKE += $n;
     }
     my $n = 0;
     for (; $i <= $P_END; $i++, $n++) {
