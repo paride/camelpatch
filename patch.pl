@@ -742,8 +742,7 @@ sub usage {
 
 sub version {
     print PRODUCT_NAME, ' ', PATCH_VERSION, "\n",
-        "Copyright 1989-2025 Free Software Foundation, Inc.\n",
-        "Copyright 1984-1988 Larry Wall\n\n",
+        "Copyright: 2026 Canonical Ltd.\n\n",
         "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.\n",
         "This is free software: you are free to change and redistribute it.\n",
         "There is NO WARRANTY, to the extent permitted by law.\n";

@@ -66,8 +66,8 @@ implemented features and verified results; do not record intentions as facts.
   GNU's practical behavior on test-sized inputs. GNU's fd-based safe path
   traversal is emulated with lstat-based component checks. The `--help`
   bug-report line differs on purpose (Camel patch project), as does the product
-  name in `--version`; the "Written by Larry Wall and Paul Eggert" line of
-  GNU's `--version` output is intentionally not printed.
+  name and copyright attribution in `--version`; GNU's author line is
+  intentionally not printed.
 - The initial environment has GNU patch 2.8, GNU diffutils 3.12, ed, and Perl
   5.42.3. Recheck tool versions when working in another environment.
 - Test-suite facts verified from the pinned checkout: 49 test scripts; expected
