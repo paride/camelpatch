@@ -13,7 +13,9 @@ implemented features and verified results; do not record intentions as facts.
   `gnu-patch` (Git submodule) pinned to tag `v2.8` = commit
   `48ceda8200aaf30c3ce42c31cd70ff6087db2425`, test runner `tools/test.pl`,
   and `patch.pl`. A separate differential runner (`tools/differential.pl`)
-  and cases under `tests/differential/` are also implemented.
+  and cases under `tests/differential/` are also implemented. Development
+  checks are configured in `.pre-commit-config.yaml`, with YAML rules in
+  `.yamllint.yaml` and Perl::Critic policy selections in `.perlcriticrc`.
 - `patch.pl` implements: full GNU-style CLI (getopt_long port with
   permutation, abbreviations, attached arguments, POSIX mode, environment
   defaults), patch format detection, unified/normal/context/Git-style text
@@ -244,7 +246,11 @@ perl tools/differential.pl --reference /usr/bin/patch
 perl tools/differential.pl --group cli
 perl tools/differential.pl --case cli.short-clusters
 perl tools/differential.pl --list
+pre-commit run --all-files
 ```
+
+The pre-commit checks run separately from both compatibility test paths and
+cover repository hygiene, YAML, spelling, Perl::Critic, and ShellCheck.
 
 - Cases are array references returned by `tests/differential/*.pl`, with unique
   `group.name` identifiers. They declare arguments, input bytes, environment

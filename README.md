@@ -69,6 +69,18 @@ See `perl tools/test.pl --help` for the full interface. Test-only dependencies
 (GNU diff, ed, standard shell utilities) are needed by the suite, not by
 `patch.pl`.
 
+### Development checks
+
+Run the configured pre-commit checks with:
+
+```sh
+pre-commit run --all-files
+```
+
+This checks common repository issues, YAML, spelling, Perl style with
+Perl::Critic, and shell scripts with ShellCheck. Pre-commit installs the managed
+hook environments; ShellCheck must be installed on the system.
+
 ### Extra differential tests
 
 These run separately from GNU's suite:

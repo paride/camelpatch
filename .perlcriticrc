@@ -1,0 +1,4 @@
+severity = 5
+# These policies conflict with terminal-fd checks, explicit failure returns,
+# and intentional octal file-mode constants used for GNU compatibility.
+exclude = InputOutput::ProhibitInteractiveTest Subroutines::ProhibitExplicitReturnUndef ValuesAndExpressions::ProhibitLeadingZeros

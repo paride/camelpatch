@@ -2,7 +2,7 @@
 
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 tmp=${TMPDIR:-/tmp}/camel-patch-runner-timeout.$$
 mkdir "$tmp"
 trap 'rm -rf "$tmp"' 0 HUP INT TERM

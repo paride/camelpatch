@@ -4644,8 +4644,8 @@ sub diff_diag {
         else { $fmax-- }
         for (my $d = $fmax; $d >= $fmin; $d -= 2) {
             my $tlo = $fd->{$d - 1};
-            my $thi = $fd->{$d + 1};
-            my $x0 = $tlo < $thi ? $thi : $tlo + 1;
+            my $t_hi = $fd->{$d + 1};
+            my $x0 = $tlo < $t_hi ? $t_hi : $tlo + 1;
             my $y = $x0 - $d;
             my $x = $x0;
             while ($x < $xlim && $y < $ylim
@@ -4668,8 +4668,8 @@ sub diff_diag {
         else { $bmax-- }
         for (my $d = $bmax; $d >= $bmin; $d -= 2) {
             my $tlo = $bd->{$d - 1};
-            my $thi = $bd->{$d + 1};
-            my $x0 = $tlo < $thi ? $tlo : $thi - 1;
+            my $t_hi = $bd->{$d + 1};
+            my $x0 = $tlo < $t_hi ? $tlo : $t_hi - 1;
             my $y = $x0 - $d;
             my $x = $x0;
             while ($xoff < $x && $yoff < $y
