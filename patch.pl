@@ -13,8 +13,9 @@
 use strict;
 use warnings;
 
-use Fcntl qw(O_WRONLY O_RDWR O_RDONLY O_CREAT O_EXCL O_TRUNC O_APPEND);
+use Fcntl qw(O_WRONLY O_CREAT O_EXCL O_TRUNC);
 use Errno qw(ENOENT EEXIST EXDEV EPERM EACCES ELOOP);
+use POSIX ();
 use Time::HiRes qw(stat lstat utime);
 use Time::Local qw(timegm timelocal);
 
@@ -180,25 +181,9 @@ my $MERGE_LAST_WHAT;           # last merge result kind, for run-on messages
 # 2. Diagnostics and user interaction
 # ==========================================================================
 
-my %ERRNO_TEXT = (
-    1  => 'Operation not permitted',
-    2  => 'No such file or directory',
-    13 => 'Permission denied',
-    17 => 'File exists',
-    18 => 'Cross-device link',
-    20 => 'Not a directory',
-    21 => 'Is a directory',
-    28 => 'No space left on device',
-    30 => 'Read-only file system',
-    36 => 'File name too long',
-    39 => 'Directory not empty',
-    40 => 'Too many levels of symbolic links',
-    84 => 'Invalid or incomplete multibyte or wide character',
-);
-
 sub errno_text {
     my ($err) = @_;
-    return $ERRNO_TEXT{$err + 0} // 'Unknown error ' . ($err + 0);
+    return POSIX::strerror($err + 0);
 }
 
 sub remove_temporary_files {
@@ -1916,7 +1901,6 @@ sub intuit_diff_type {
         if (!$stars_last_line
             && substr($PATCHBUF, $s, 3) eq '***'
             && c_isblank(substr($PATCHBUF, $s + 3, 1))) {
-            my $stamp = $P_TIMESTAMP[OLD];
             fetchname(substr($PATCHBUF, $s + 4), $STRIPPATH, OLD, OLD,
                       \$P_TIMESTAMP[OLD]);
             $need_header = 0;
@@ -3127,7 +3111,6 @@ sub report_revision {
 
 sub get_input_file {
     my ($filename, $outname, $file_type) = @_;
-    my $elsewhere = $filename ne $outname;
 
     if ($INERRNO == -1) {
         $INERRNO = stat_file($filename, \%INSTAT);
@@ -4073,12 +4056,10 @@ sub copy_file {
     # Regular file copy.
     $to_flags //= 0;
     my $fh;
-    my $created = 0;
     my $open_flags = O_WRONLY | O_CREAT | O_TRUNC | $to_flags;
     my $open_mode = ($mode & 07777) | 0600;
     while (1) {
         if (sysopen($fh, $to, $open_flags, $open_mode)) {
-            $created = 1;
             last;
         }
         if ($!{ENOENT} && !$dir_known) {
