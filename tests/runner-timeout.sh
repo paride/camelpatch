@@ -13,6 +13,7 @@ if [ "${1-}" = "--version" ]; then
     printf 'GNU patch 2.8\n'
     exit 0
 fi
+trap 'exit 1' TERM
 sleep 3
 exit 1
 SH
