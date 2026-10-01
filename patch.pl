@@ -776,6 +776,11 @@ sub get_some_switches {
     my $end_of_options;
     my $short_position = 0;
     my $require_order = $POSIXLY_CORRECT;
+    my %short_options;
+    for my $option (@LONGOPTS) {
+        next unless defined $option->[2];
+        $short_options{$option->[2]} //= $option;
+    }
 
     # Returns the [key, arg] for the option at $optind, advancing $optind;
     # returns undef when the element is a file operand, and the string
@@ -838,11 +843,12 @@ sub get_some_switches {
         while ($pos < length $cluster) {
             my $c = substr $cluster, $pos, 1;
             $pos++;
-            unless (index('bBcdDeEfFgilnNoprRstTuvVxYzZ', $c) >= 0) {
+            my $short_option = $short_options{$c};
+            unless ($short_option) {
                 print STDERR $PROGRAM_NAME, ": invalid option -- '$c'\n";
                 return '?';
             }
-            my $takes = index('BdDFgiprVoxYz', $c) >= 0 ? 1 : 0;
+            my $takes = $short_option->[1] eq 'required_argument';
             if ($takes) {
                 if ($pos < length $cluster) {
                     $optarg = substr $cluster, $pos;
