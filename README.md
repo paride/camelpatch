@@ -35,7 +35,9 @@ guide, the current state, and the testing workflow.
 
 ## Requirements
 
-- Perl 5.22.1 or newer; core modules only.
+- Perl 5.22.1 or newer; core modules only. The test runners use the system
+  Perl in their environment. For minimum-version verification, run the test
+  commands in a suitable VM or container whose system Perl meets the requirement.
 - Linux is the initial platform.
 - No network access at runtime.
 
@@ -47,7 +49,9 @@ patch.pl               the complete implementation
 LICENSE                GPL-3.0-or-later, verbatim from GNU COPYING
 README.md              this file
 compat/2.8.json        compatibility manifest for the pinned target
-tools/test.pl          test suite runner
+tools/test.pl          GNU reference suite runner
+tools/differential.pl  separate differential-test runner
+tests/differential/    project-owned differential cases
 gnu-patch/             GNU patch reference checkout pinned to the target release
 ```
 
@@ -64,6 +68,32 @@ perl tools/test.pl --patch /usr/bin/patch  # GNU reference baseline
 See `perl tools/test.pl --help` for the full interface. Test-only dependencies
 (GNU diff, ed, standard shell utilities) are needed by the suite, not by
 `patch.pl`.
+
+### Extra differential tests
+
+These run separately from GNU's suite:
+
+```sh
+perl tools/differential.pl --reference /usr/bin/patch
+perl tools/differential.pl --group cli
+perl tools/differential.pl --case cli.short-clusters
+perl tools/differential.pl --list
+```
+
+The initial 50 cases cover CLI parsing and environment-variable behavior.
+The reference executable must report GNU patch 2.8, matching the compatibility
+manifest. Each case runs both implementations in equivalent isolated directories
+and compares exit status, stdout, stderr, file bytes, directory structure, modes,
+ownership, symlink targets, and hardlink relationships. Cases can also request
+mtime comparison for specific files. Arbitrary creation/modification timestamps
+and inode numbers are not compared, since those differ between independent runs.
+
+Only invocation-name differences in diagnostics are normalized in the initial
+cases. Raw outputs, status records, filesystem snapshots, and both work trees are
+retained under `build/differential/run.XXXXXX/`. A mismatch or timeout fails the
+run; runner/prerequisite errors exit 2. GNU suite XFAIL declarations do not apply
+to these comparisons. See `perl tools/differential.pl --help` for selection and
+timeout options.
 
 ## License
 

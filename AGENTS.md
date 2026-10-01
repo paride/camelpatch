@@ -12,7 +12,8 @@ implemented features and verified results; do not record intentions as facts.
   `README.md`, compatibility manifest `compat/2.8.json`, GNU reference checkout
   `gnu-patch` (Git submodule) pinned to tag `v2.8` = commit
   `48ceda8200aaf30c3ce42c31cd70ff6087db2425`, test runner `tools/test.pl`,
-  and `patch.pl`.
+  and `patch.pl`. A separate differential runner (`tools/differential.pl`)
+  and cases under `tests/differential/` are also implemented.
 - `patch.pl` implements: full GNU-style CLI (getopt_long port with
   permutation, abbreviations, attached arguments, POSIX mode, environment
   defaults), patch format detection, unified/normal/context/Git-style text
@@ -29,8 +30,15 @@ implemented features and verified results; do not record intentions as facts.
   (`context-format`, `dash-o-append`), 0 FAIL, 0 SKIP, verdict PASS, exit 0 --
   matching the recorded GNU baseline. The launcher (`build/patch`) is
   exercised by this and preserves `$0` for program-name diagnostics.
-- Not yet verified: Perl 5.22.1 (not provisioned); the suite has been run on
-  Perl 5.42.3 only.
+- Differential result: `perl tools/differential.pl --reference /usr/bin/patch`
+  reports **50 PASS, 0 FAIL, 0 SKIP**, exit 0 on Perl 5.42.3. The cases cover
+  CLI parsing and environment variables and uncovered defects in short-option
+  clusters, permutation of separate arguments, `-d`, unknown short options,
+  backup-style abbreviations/diagnostics, and empty environment precedence;
+  these were fixed without changing the GNU reference suite.
+- Runtime compatibility is required with Perl 5.22.1 and newer. Test runners use
+  their system Perl. For minimum-version verification, run the test commands in
+  a suitable VM or container whose system Perl meets the requirement.
 - Porting decisions worth review: GNU's merge leaves the diffseq
   `too_expensive` heuristic uninitialized in C; the Perl port pins it to a
   large constant (effectively disabling the give-up path) and this matches
@@ -41,16 +49,16 @@ implemented features and verified results; do not record intentions as facts.
   name in `--version`; the "Written by Larry Wall and Paul Eggert" line of
   GNU's `--version` output is intentionally not printed.
 - The initial environment has GNU patch 2.8, GNU diffutils 3.12, ed, and Perl
-  5.42.3. Recheck tool versions when working in another environment. Perl
-  5.22.1 has not yet been provisioned.
+  5.42.3. Recheck tool versions when working in another environment.
 - Test-suite facts verified from the pinned checkout: 49 test scripts; expected
   failures `context-format` and `dash-o-append`; the Haiku-only XFAIL for
   `preserve-mode-and-timestamp` does not apply on Linux; no GNU reference test
   exercises legacy VCS retrieval, so that exclusion affects no tests.
-- Remaining verification gaps for final acceptance: differential tests for
-  behavior outside the suite (option parsing corners, prompts, `Prereq:`,
-  environment variables), Perl 5.22.1 run, and a scan of GNU behaviors not
-  exercised by the suite.
+- Remaining verification gaps for final acceptance: further CLI/environment
+  differential coverage, terminal prompts, `Prereq:`, ed and `-D` edge cases,
+  metadata edge cases, and a scan of GNU behaviors not exercised by either test
+  path. The initial 50 differential cases are not
+  exhaustive coverage.
 
 Update this section when these facts change.
 
@@ -96,7 +104,7 @@ to investigate behavior beyond the suite.
 - All runtime implementation must reside in **one self-contained `patch.pl`**.
   Do not split it into project-owned runtime modules or auxiliary executables.
 - Support **Perl 5.22.1 and newer**. Do not use newer syntax or module APIs without
-  verifying availability in 5.22.1.
+  verifying availability in the minimum supported Perl release.
 - Use only Perl modules shipped with Perl by default. No CPAN installation may be
   required to run the script. Check each chosen module against the minimum Perl.
 - External runtime tools, if needed, must be provided by Debian Essential
@@ -124,13 +132,15 @@ README.md                  purpose, usage, dependencies, testing, exclusions
 .gitmodules                GNU reference repository location
 compat/2.8.json            target revision, expectations, approved exclusions
 tools/test.pl              project-owned test runner
-tests/                     additional regression and differential tests (planned)
+tools/differential.pl      separate project-owned differential runner
+tests/differential/        named CLI and environment differential cases
 gnu-patch/                 GNU patch reference checkout pinned to the target release
 build/                     ignored scratch area, created by the test runner
 ```
 
 Implemented: `AGENTS.md`, `LICENSE`, `README.md`, `.gitmodules`,
-`compat/2.8.json`, `tools/test.pl`, `gnu-patch`, `patch.pl`. Planned: `tests/`.
+`compat/2.8.json`, `tools/test.pl`, `tools/differential.pl`, `tests/differential/`,
+`gnu-patch`, `patch.pl`.
 
 The runner ignores `build/`: it writes per-test logs to `build/logs/<target>/`
 and runs tests in scratch directories under `build/work.<pid>` (removed after
@@ -172,8 +182,8 @@ a `PATCH` override. This lets the runner execute the GNU reference shell tests a
 
 - Supply the required `srcdir` and `abs_top_builddir` values and isolated scratch
   directories. Keep logs outside directories removed by GNU reference cleanup traps.
-- Use a launcher when selecting a Perl interpreter. Verify executable-path
-  diagnostics against GNU reference expectations rather than broadly filtering them.
+- Use a launcher to preserve executable-path diagnostics against GNU reference
+  expectations; do not broadly filter those paths from comparisons.
 - Install `ed` in the complete test environment: `ed-style` requires it, and
   `crlf-handling` and `need-filename` contain ed sections gated by `have_ed`.
   Do not disable those sections merely because our runtime implements ed itself.
@@ -190,7 +200,6 @@ perl tools/test.pl                          # test patch.pl via build/patch laun
 perl tools/test.pl --patch /usr/bin/patch   # GNU reference baseline
 perl tools/test.pl --test asymmetric-hunks  # selection accepts repeats and commas
 perl tools/test.pl --list                   # inventory with expected failures
-perl tools/test.pl --perl /path/to/perl-5.22.1
 ```
 
 Verified behavior of `tools/test.pl`:
@@ -207,11 +216,59 @@ Verified behavior of `tools/test.pl`:
 - Exit status is 0 only with no FAIL, no XPASS, and no SKIP; a skip means
   incomplete coverage. `--timeout` (default 300 s) kills runaway tests.
 - In default mode it generates `build/patch`, a Perl launcher that `do`s
-  `patch.pl` so `$0` (hence program-name diagnostics) matches the invoked
-  program name, which GNU reference expectations such as `bad-usage` rely on.
+  `patch.pl` with the system Perl running `tools/test.pl` so `$0` (hence
+  program-name diagnostics) matches the invoked program name, which GNU
+  reference expectations such as `bad-usage` rely on.
   This path is exercised by the suite run and matches the GNU baseline.
 - Establish the GNU baseline with `--patch /usr/bin/patch`; recorded baseline:
   47 PASS, 2 XFAIL, 0 SKIP, verdict PASS.
+
+### Separate differential runner (verified)
+
+Keep the two test paths separate: `tools/test.pl` exercises GNU's reference
+scripts, while `tools/differential.pl` runs project-owned comparisons only.
+Do not make either runner implicitly invoke the other.
+
+```sh
+perl tools/differential.pl --reference /usr/bin/patch
+perl tools/differential.pl --group cli
+perl tools/differential.pl --case cli.short-clusters
+perl tools/differential.pl --list
+```
+
+- Cases are array references returned by `tests/differential/*.pl`, with unique
+  `group.name` identifiers. They declare arguments, input bytes, environment
+  overrides, initial files, and optional symlinks/hardlinks. File specifications
+  can include modes and mtimes; `compare_mtime` selects files whose mtimes matter.
+- Group/case selectors accept repeats and comma-separated names. Both selectors,
+  when supplied, are intersected. Unknown selections abort instead of silently
+  running no tests. `--list` does not execute the targets.
+- The runner checks the reference executable's version against the selected
+  manifest (`--manifest`, default newest version). It uses the system Perl
+  running `tools/differential.pl` and a dedicated launcher; it never writes
+  `build/patch`, which belongs to the GNU-suite runner.
+- Each process gets isolated files, a fixed umask, C locale, UTC timezone, and
+  cleaned patch/Perl environment defaults. Environment cases explicitly override
+  these defaults. Processes have no controlling terminal; actual terminal-prompt
+  coverage remains a separate verification gap.
+- Compares exit status, signal, separate stdout/stderr streams, file contents,
+  directory structure, modes, ownership, symlink targets, and hardlink relations.
+  Independent inode numbers and incidental timestamps are not equal across runs;
+  relevant mtimes are explicitly selected by a case.
+- The initial cases normalize only program-name differences in diagnostic prefixes
+  and usage hints. Raw outputs remain available for review. Do not add broad
+  normalization to hide a mismatch. Identity-output cases will need explicit
+  treatment of the already-approved version/help differences when added.
+- Artifacts are retained under `build/differential/run.XXXXXX/<case>/`:
+  `reference/` and `camel/` each contain `work/`, `stdin`, `stdout`, `stderr`,
+  `status.json`, and `tree.json`; `result.json` lists mismatched fields.
+  `run.json` records the system interpreter, reference, manifest, and selected cases.
+- Default timeout is 10 seconds per process (`--timeout`); a timeout or signal
+  fails the case. Exit 0 means all selected cases match, 1 means differences,
+  and 2 means runner/prerequisite trouble. The initial cases need no extra tools
+  beyond Perl, the reference executable, and the normal Linux filesystem.
+- GNU-suite XFAIL expectations are not imported: equal reference behavior is a
+  differential PASS, including behavior that GNU itself considers a known bug.
 
 ### Result policy and iteration
 
@@ -237,8 +294,8 @@ Verified behavior of `tools/test.pl`:
 - Differential comparisons may normalize declared branding and executable-path
   differences only; other normalization needs a specific justification.
 - Final acceptance requires no unexplained or unexpected failures, no unreviewed
-  XPASS results, and complete supported coverage on Perl 5.22.1 and a current Perl.
-  Report unavailable verification or remaining gaps honestly.
+  XPASS results, and complete supported coverage in environments whose system
+  Perl is 5.22.1 and a current system Perl. Report remaining gaps honestly.
 
 ## Initial implementation sequence
 
@@ -250,7 +307,8 @@ Verified behavior of `tools/test.pl`:
 5. Add normal/context/Git-style parsing, filename rules, creation/deletion, and ed.
 6. Add rejects, backups, dry-run/output modes, merge, `-D`, and prompts.
 7. Close filesystem and malformed-input compatibility gaps.
-8. Complete full-suite and differential verification on the minimum/current Perl.
+8. Complete full-suite and differential verification in environments with the
+   minimum supported system Perl and a current system Perl.
 
 Adjust milestone ordering when dependencies justify it, while keeping verification
 and this guide current. Ask the user about genuine scope or compatibility decisions;
@@ -275,8 +333,9 @@ merely a submodule update:
    code notices. Verify LICENSE still matches the reference COPYING.
 7. Iterate through affected tests and then the full suite. Add differential cases
    for new or changed behavior that the GNU reference tests do not cover.
-8. Verify with Perl 5.22.1 and a current Perl. The minimum does not rise implicitly
-   with a new GNU release; discuss any proposed change with the user.
+8. Verify in environments with the minimum supported system Perl and a current
+   system Perl. The minimum does not rise implicitly with a new GNU release;
+   discuss any proposed change with the user.
 9. Update this guide with the actual repository state, target revision, working
    commands, approved decisions, and verification results. Summarize completion
    and remaining gaps to the user. Commit or release only if requested.

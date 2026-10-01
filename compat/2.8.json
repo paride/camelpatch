@@ -29,7 +29,6 @@
   "test_environment": {
     "reference_implementation": "/usr/bin/patch (GNU patch 2.8)",
     "current_perl": "5.42.3",
-    "minimum_perl": "5.22.1 (not yet provisioned)",
     "test_only_dependencies": ["GNU diff", "ed", "sed", "stat", "cat", "chmod", "touch"]
   }
 }

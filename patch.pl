@@ -578,20 +578,14 @@ sub argmatch {
     # Match VALUE against a list of full names, accepting unambiguous
     # abbreviations.  Return the index, -1 for no match, -2 for ambiguous.
     my ($value, $args) = @_;
-    my $exact = -1;
-    my $ambiguous = -1;
+    my @matches;
     for my $i (0 .. $#$args) {
-        if ($args->[$i] eq $value) { $exact = $i; last }
-        if (index($args->[$i], $value) == 0 && $value ne '') {
-            if ($ambiguous >= 0 && $i != $ambiguous) {
-                return -2 unless $exact >= 0;
-            }
-            $ambiguous = $i if $ambiguous < 0;
-        }
+        return $i if $args->[$i] eq $value;
+        push @matches, $i if index($args->[$i], $value) == 0;
     }
-    return $exact if $exact >= 0;
-    return -2 if $ambiguous >= 0;
-    return -1;
+    return -1 unless @matches;
+    return -2 if @matches > 1;
+    return $matches[0];
 }
 
 sub argmatch_invalid {
@@ -625,8 +619,15 @@ sub get_version {
     return 'existing' unless defined $version && $version ne '';
     my $match = argmatch($version, \@BACKUP_ARGS);
     if ($match < 0) {
-        argmatch_invalid($context, $version, $match);
-        usage(\*STDERR, EXIT_TROUBLE);
+        print STDERR 'patch: ', $match == -1 ? 'invalid' : 'ambiguous',
+            ' argument ', quotearg_style('shell-always', $version), ' for ',
+            quotearg_style('shell-always', $context), "\n",
+            "Valid arguments are:\n",
+            "  - 'none', 'off'\n",
+            "  - 'simple', 'never'\n",
+            "  - 'existing', 'nil'\n",
+            "  - 'numbered', 't'\n";
+        fatal_exit();
     }
     return $BACKUP_VALS[$match];
 }
@@ -778,6 +779,8 @@ sub get_some_switches {
     my $optind = 0;
     my $optarg;
     my $end_of_options;
+    my $short_position = 0;
+    my $require_order = $POSIXLY_CORRECT;
 
     # Returns the [key, arg] for the option at $optind, advancing $optind;
     # returns undef when the element is a file operand, and the string
@@ -836,11 +839,15 @@ sub get_some_switches {
 
         # A short option cluster.
         my $cluster = substr $token, 1;
-        my $pos = 0;
+        my $pos = $short_position;
         while ($pos < length $cluster) {
             my $c = substr $cluster, $pos, 1;
             $pos++;
-            my $takes = index('BDFgiprVoxYz', $c) >= 0 ? 1 : 0;
+            unless (index('bBcdDeEfFgilnNoprRstTuvVxYzZ', $c) >= 0) {
+                print STDERR $PROGRAM_NAME, ": invalid option -- '$c'\n";
+                return '?';
+            }
+            my $takes = index('BdDFgiprVoxYz', $c) >= 0 ? 1 : 0;
             if ($takes) {
                 if ($pos < length $cluster) {
                     $optarg = substr $cluster, $pos;
@@ -854,9 +861,11 @@ sub get_some_switches {
                     return '?';
                 }
                 $optind++;
+                $short_position = 0;
                 return [$c, $optarg];
             }
-            if ($pos >= length $cluster) { $optind++ }
+            $short_position = $pos;
+            if ($pos >= length $cluster) { $optind++; $short_position = 0 }
             return [$c, undef];
         }
         $optind++;
@@ -978,15 +987,35 @@ sub get_some_switches {
     while (!$end_of_options && $optind < @argv) {
         my $result = $read_option->();
         if (!defined $result) {
-            last if $POSIXLY_CORRECT;
+            last if $require_order;
             # GNU permutation: look ahead for the next option and move it
             # behind the operands seen so far.
             my $j = $optind;
             while (++$j < @argv) {
                 my $token = $argv[$j];
                 next if length($token) < 2 || substr($token, 0, 1) ne '-';
-                my @removed = splice(@argv, $optind, $j - $optind);
-                push @argv, @removed;
+                my $separate_argument = 0;
+                if ($token =~ /\A--([^=]+)\z/ && $token ne '--') {
+                    my $name = $1;
+                    my ($entry) = grep { $_->[0] eq $name } @LONGOPTS;
+                    if (!$entry) {
+                        my @matches = grep { index($_->[0], $name) == 0 } @LONGOPTS;
+                        $entry = $matches[0] if @matches == 1;
+                    }
+                    $separate_argument = $entry && $entry->[1] eq 'required_argument';
+                }
+                elsif (substr($token, 0, 2) ne '--') {
+                    for my $position (1 .. length($token) - 1) {
+                        my $letter = substr($token, $position, 1);
+                        if (index('BdDFgiprVoxYz', $letter) >= 0) {
+                            $separate_argument = $position == length($token) - 1;
+                            last;
+                        }
+                    }
+                }
+                my $count = $separate_argument && $j + 1 < @argv ? 2 : 1;
+                my @option = splice(@argv, $j, $count);
+                splice(@argv, $optind, 0, @option);
                 last;
             }
             last if $j >= @argv;   # only operands remain
@@ -5182,10 +5211,10 @@ sub main {
     $SIMPLE_BACKUP_SUFFIX = (defined $env_suffix && $env_suffix ne '')
         ? $env_suffix : '.orig';
 
-    if ($VERSION_CONTROL = $ENV{PATCH_VERSION_CONTROL}) {
+    if (defined($VERSION_CONTROL = $ENV{PATCH_VERSION_CONTROL})) {
         $VERSION_CONTROL_CONTEXT = '$PATCH_VERSION_CONTROL';
     }
-    elsif ($VERSION_CONTROL = $ENV{VERSION_CONTROL}) {
+    elsif (defined($VERSION_CONTROL = $ENV{VERSION_CONTROL})) {
         $VERSION_CONTROL_CONTEXT = '$VERSION_CONTROL';
     }
 
