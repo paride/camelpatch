@@ -224,6 +224,12 @@ sub run_process {
     return $result;
 }
 
+sub check_runner_error {
+    my ($target, $result) = @_;
+    die "$target runner setup failed: $result->{runner_error}\n"
+        if $result->{runner_error};
+}
+
 sub snapshot {
     my ($work, $case) = @_;
     my %tree;
@@ -275,6 +281,7 @@ sub compare_case {
     for my $target (qw(reference camel)) {
         my $side = "$dir/$target";
         $results{$target} = run_process($commands->{$target}, $case, $side);
+        check_runner_error($target, $results{$target});
         for my $stream (qw(stdout stderr)) {
             $results{$target}{$stream} = normalize_output(read_bytes("$side/$stream"), $commands->{$target});
         }
@@ -283,8 +290,6 @@ sub compare_case {
     }
     my @differences;
     for my $target (qw(reference camel)) {
-        die "$target runner setup failed: $results{$target}{runner_error}\n"
-            if $results{$target}{runner_error};
         push @differences, "$target timed out" if $results{$target}{timed_out};
         push @differences, "$target terminated by signal $results{$target}{signal}"
             if $results{$target}{signal};
@@ -315,6 +320,7 @@ sub main {
     make_path("$root/build/differential");
     my $run = tempdir('run.XXXXXX', DIR => "$root/build/differential", CLEANUP => 0);
     my $version = run_process([$reference, '--version'], {}, "$run/preflight");
+    check_runner_error('reference preflight', $version);
     my $banner = read_bytes("$run/preflight/stdout");
     my $release = $manifest->{target}{release};
     die "Reference must report GNU patch $release (see $run/preflight/)\n"
