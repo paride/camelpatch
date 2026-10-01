@@ -333,11 +333,11 @@ sub classify {
         $label = 'FAIL';
         $reason = "exit status $result->{exit}";
     }
-    if ($is_xfail) {
-        return ('XPASS', $reason) if $label eq 'PASS';
-        return ('XFAIL', $reason)
-            if $label eq 'FAIL' && $result->{exit} == 1;
-    }
+    return ('ERROR', $reason) if $result->{runner_error};
+    return ('FAIL', $reason) if $result->{timed_out} || $result->{signal};
+    return ('XPASS', undef) if $is_xfail && $label eq 'PASS';
+    return ('XFAIL', $reason)
+        if $is_xfail && $label eq 'FAIL' && $result->{exit} == 1;
     return ($label, $reason);
 }
 
