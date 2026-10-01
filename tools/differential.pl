@@ -15,7 +15,7 @@ use File::Temp qw(tempdir);
 use Getopt::Long qw(GetOptions);
 use JSON::PP;
 use POSIX qw(setsid WNOHANG);
-use Time::HiRes qw(time sleep);
+use Time::HiRes qw(time sleep lstat utime);
 
 my $root = dirname(dirname(abs_path($0)));
 my (@groups, @names);
@@ -238,7 +238,7 @@ sub snapshot {
         my $path = $File::Find::name;
         return if $path eq $work;
         my $name = substr($path, length($work) + 1);
-        my @st = lstat $path;
+        my @st = Time::HiRes::lstat($path);
         die "lstat $path: $!\n" unless @st;
         my $entry = { mode => sprintf('%04o', $st[2] & 07777),
                       uid => $st[4], gid => $st[5] };
@@ -253,7 +253,16 @@ sub snapshot {
             push @{ $links{"$st[0],$st[1]"} }, $name;
         }
         else { $entry->{type} = sprintf('special:%o', $st[2] & 0170000) }
-        $entry->{mtime} = $st[9] if grep { $_ eq $name } @{ $case->{compare_mtime} // [] };
+        if (grep { $_ eq $name } @{ $case->{compare_mtime} // [] }) {
+            $entry->{mtime} = int $st[9];
+        }
+        if (grep { $_ eq $name } @{ $case->{compare_mtime_nsec} // [] }) {
+            my $seconds = int $st[9];
+            $seconds-- if $st[9] < $seconds;
+            my $nanoseconds = int(($st[9] - $seconds) * 1_000_000_000 + 0.5);
+            $nanoseconds = 0 if $nanoseconds >= 1_000_000_000;
+            $entry->{mtime_nsec} = $nanoseconds;
+        }
         $tree{$name} = $entry;
     } }, $work);
     for my $paths (values %links) {

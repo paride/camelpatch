@@ -3075,15 +3075,29 @@ sub pch_normalize {
 # 10. Input file handling
 # ==========================================================================
 
+sub split_timestamp {
+    my ($timestamp) = @_;
+    my $seconds = int $timestamp;
+    $seconds-- if $timestamp < $seconds;
+    my $nanoseconds = int(($timestamp - $seconds) * 1_000_000_000 + 0.5);
+    if ($nanoseconds >= 1_000_000_000) {
+        $seconds++;
+        $nanoseconds -= 1_000_000_000;
+    }
+    return ($seconds, $nanoseconds);
+}
+
 sub stat_file {
     my ($filename, $st_ref) = @_;
     my @st = $FOLLOW_SYMLINKS ? stat($filename) : lstat($filename);
     if (defined $st[0]) {
+        my ($atime, $atime_nsec) = split_timestamp($st[8]);
+        my ($mtime, $mtime_nsec) = split_timestamp($st[9]);
         %$st_ref = (
             dev => $st[0], ino => $st[1], mode => $st[2], nlink => $st[3],
-            uid => $st[4], gid => $st[5], size => $st[7], mtime => $st[9],
-            atime => $st[8], mtime_nsec => $st[14] // 0,
-            atime_nsec => $st[13] // 0,
+            uid => $st[4], gid => $st[5], size => $st[7], mtime => $mtime,
+            atime => $atime, mtime_nsec => $mtime_nsec,
+            atime_nsec => $atime_nsec,
         );
         return 0;
     }
