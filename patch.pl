@@ -3090,6 +3090,11 @@ sub set_queued_output {
     $FILE_ID{$key}[1] = $queued;
 }
 
+sub copy_stat {
+    my ($st) = @_;
+    return { %$st };
+}
+
 sub has_queued_output {
     my ($st) = @_;
     my $entry = $FILE_ID{($st->{dev} // 0) . ',' . ($st->{ino} // 0)};
@@ -4221,8 +4226,10 @@ sub output_file {
             $st = {};
             stat_file($to, $st);
         }
-        push @FILES_TO_DELETE, { name => $to, st => $st, backup => $backup };
-        insert_file_id($st, FILE_ID_DELETE_LATER);
+        my $saved_st = copy_stat($st);
+        push @FILES_TO_DELETE,
+            { name => $to, st => $saved_st, backup => $backup };
+        insert_file_id($saved_st, FILE_ID_DELETE_LATER);
     }
     elsif ($P_GIT_DIFF && pch_says_nonexistent($REVERSE_FLAG) != 2) {
         # In git-style diffs, the "before" state of each patch refers to
@@ -4230,7 +4237,7 @@ sub output_file {
         # processed one at a time.  Ownership of the temporary file moves
         # to the queue.
         push @FILES_TO_OUTPUT, {
-            from_name => $from_name, from_st => $from_st,
+            from_name => $from_name, from_st => copy_stat($from_st),
             to => $to, mode => $mode, backup => $backup,
         };
         @TEMP_FILES = grep { $_ ne $from_name } @TEMP_FILES;
@@ -4242,14 +4249,14 @@ sub output_file {
 
 sub output_files {
     my ($st, $exiting) = @_;
-    my @queue = @FILES_TO_OUTPUT;
-    @FILES_TO_OUTPUT = ();
-    for my $f (@queue) {
+    while (@FILES_TO_OUTPUT) {
+        my $f = $FILES_TO_OUTPUT[0];
         output_file_now($f->{from_name}, $f->{from_st}, $f->{to},
                         $f->{mode}, $f->{backup});
         if ($f->{to}) {
             unlink $f->{from_name};
         }
+        shift @FILES_TO_OUTPUT;
         last if defined $st
             && $st->{dev} == $f->{from_st}{dev}
             && $st->{ino} == $f->{from_st}{ino};
