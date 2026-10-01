@@ -8,6 +8,13 @@ and filesystem effects.
 
 The current compatibility target is **GNU patch 2.8**.
 
+## Why this project exists
+
+- To provide a self-contained `patch(1)` implementation that relies only on
+  Debian Essential packages.
+- To experiment with using AI to write a tool in a different programming
+  language, using the original tool as the reference implementation.
+
 ## Usage
 
 ```sh
