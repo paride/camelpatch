@@ -44,7 +44,8 @@ jobs:
             https://ftp.gnu.org/gnu/patch/patch-2.8.tar.xz \
             | tar -xJ -C "$RUNNER_TEMP"
           cd "$RUNNER_TEMP/patch-2.8"
-          ./configure --prefix="$REFERENCE_PREFIX"
+          # Keep GNU's editor diagnostic stable across runner PATH layouts.
+          ac_cv_path_ED=ed ./configure --prefix="$REFERENCE_PREFIX"
           make --jobs=2
           make install
           "$REFERENCE_PREFIX/bin/patch" --version
@@ -70,3 +71,13 @@ jobs:
           sh tests/ownership-fallback.sh
           sh tests/runner-timeout.sh
           sh tests/version-output.sh
+
+      - name: Upload CI failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-failure-artifacts
+          if-no-files-found: warn
+          path: |
+            build/logs/
+            build/differential/
