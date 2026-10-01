@@ -1034,9 +1034,12 @@ sub get_some_switches {
                 }
                 elsif (substr($token, 0, 2) ne '--') {
                     for my $position (1 .. length($token) - 1) {
-                        my $letter = substr($token, $position, 1);
-                        if (index('BdDFgiprVoxYz', $letter) >= 0) {
-                            $separate_argument = $position == length($token) - 1;
+                        my $short_option =
+                            $short_options{substr($token, $position, 1)};
+                        if ($short_option
+                            && $short_option->[1] eq 'required_argument') {
+                            $separate_argument =
+                                $position == length($token) - 1;
                             last;
                         }
                     }
