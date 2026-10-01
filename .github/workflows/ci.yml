@@ -25,7 +25,7 @@ jobs:
       - name: Install test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes bison build-essential curl ed libio-pty-perl shellcheck xz-utils
+          sudo apt-get install --yes bison build-essential curl ed libio-pty-perl util-linux xz-utils
 
       - name: Set up Python for pre-commit
         uses: actions/setup-python@v5

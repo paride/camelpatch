@@ -17,7 +17,11 @@ implemented features and verified results; do not record intentions as facts.
   checks are configured in `.pre-commit-config.yaml`, with YAML rules in
   `.yamllint.yaml` and Perl::Critic policy selections in `.perlcriticrc`.
   GitHub Actions CI runs on pushes to `main` and pull requests via
-  `.github/workflows/ci.yml`.
+  `.github/workflows/ci.yml` on `ubuntu-latest`. It builds GNU v2.8 from its
+  official release tarball with `ac_cv_path_ED=ed`, runs both suites, pre-commit,
+  and focused regressions, and uploads test logs/differential artifacts on failure.
+- Latest successful GitHub Actions run: CI passed on `ubuntu-latest` for commit
+  `4811c01` (run #3, 2026-10-01).
 - `patch.pl` implements: full GNU-style CLI (getopt_long port with
   permutation, abbreviations, attached arguments, POSIX mode, environment
   defaults), patch format detection, unified/normal/context/Git-style text
@@ -27,7 +31,8 @@ implemented features and verified results; do not record intentions as facts.
   (unified and context), backups (simple/numbered/existing, `-B/-Y/-z`),
   dry-run, `-o`/`-r`/`-E`, read-only handling, the CR-stripping heuristic,
   quoting styles, timestamps and file modes (including Git headers), symlink
-  and hardlink handling, Git queued-output detection, **ed scripts**
+  and hardlink handling, group-only ownership fallback, Git queued-output
+  detection, **ed scripts**
   (restricted-subset interpreter in Perl), and **merge** (port of
   locate_merge/bestmatch/diffseq with conflict markers).
 - Suite result: `perl tools/test.pl` reports **47 PASS, 2 XFAIL**
@@ -35,23 +40,29 @@ implemented features and verified results; do not record intentions as facts.
   matching the recorded GNU baseline. The launcher (`build/patch`) is
   exercised by this and preserves `$0` for program-name diagnostics.
 - Differential result: `perl tools/differential.pl --reference /usr/bin/patch`
-  reports **88 PASS, 0 FAIL, 0 SKIP**, exit 0 on Perl 5.42.3. The cases cover
-  CLI parsing and environment variables and uncovered defects in short-option
-  clusters, permutation of separate arguments, `-d`, unknown short options,
-  backup-style abbreviations/diagnostics, and empty environment precedence;
-  these were fixed without changing the GNU reference suite. Added coverage
-  checks fractional timestamp matching and `-T`, `Prereq:`, `-D`, ed failure
-  edges, PTY prompt responses, `locale`/`clocale` quoting under C and C.utf8,
-  and multi-file backup/reject/dry-run/output workflows.
+  reports **88 PASS, 0 FAIL, 0 SKIP**, exit 0 on Perl 5.42.3. The same suite
+  also passed with a GNU patch 2.8 release build configured using
+  `ac_cv_path_ED=ed`. The cases cover CLI parsing and environment variables and
+  uncovered defects in short-option clusters, permutation of separate arguments,
+  `-d`, unknown short options, backup-style abbreviations/diagnostics, and empty
+  environment precedence; these were fixed without changing the GNU reference
+  suite. Added coverage checks fractional timestamp matching and `-T`, `Prereq:`,
+  `-D`, ed failure edges, PTY prompt responses, `locale`/`clocale` quoting under
+  C and C.utf8, and multi-file backup/reject/dry-run/output workflows.
 - `patch.pl` uses Time::HiRes fractional `stat` results and splits timestamp
   seconds/nanoseconds explicitly; core stat has no separate nanosecond fields.
-  Differential fixtures exercise representative fractions, but Time::HiRes exposes
-  timestamps as floating-point values, so this does not establish exact preservation
-  of every filesystem nanosecond value.
+  Differential fixtures exercise representative fractions, but Time::HiRes
+  exposes timestamps as floating-point values, so this does not establish exact
+  preservation of every filesystem nanosecond value.
 - Differential PTY cases use the test-only IO::Pty module, which is not required
   by `patch.pl` at runtime.
-- `tests/ownership-fallback.sh` checks GNU's group-only chown retry with a
-  controlled foreign-owner fixture; it requires `setpriv` and passwordless sudo.
+- CI installs `bison`, `build-essential`, `curl`, `ed`, `libio-pty-perl`, and
+  `util-linux`, and `xz-utils`; pre-commit installs managed hook environments,
+  including `shellcheck-py`. The test-only ownership regression needs the
+  `setpriv` utility and passwordless sudo.
+- `tests/ownership-fallback.sh` requires `setpriv` and passwordless sudo. It
+  derives the fixture group from the current user, patches a foreign-owner file
+  as `nobody` with that group supplementary, and compares GNU and Camel results.
 - Code-quality review completed in focused commits: byte-stream reads use a
   shared `read_all` helper with large-input regression cases and copies use a
   bounded-memory stream helper; hunk storage no longer simulates C allocation or
@@ -60,8 +71,9 @@ implemented features and verified results; do not record intentions as facts.
   short-option metadata is derived from the option table.
 - Runtime compatibility is required with Perl 5.22.1 and newer. Test runners use
   their system Perl. Perl 5.22.1 remains the syntax, core-module, and API
-  compatibility baseline; minimum-version test execution is not a completion
-  requirement.
+  compatibility baseline because it is the Perl version in Ubuntu 16.04
+  (Xenial), currently the oldest Debian/Ubuntu release this project aims to
+  support. Minimum-version test execution is not a completion requirement.
 - Porting decisions worth review: GNU's merge leaves the diffseq
   `too_expensive` heuristic uninitialized in C; the Perl port pins it to a
   large constant (effectively disabling the give-up path) and this matches
@@ -70,8 +82,9 @@ implemented features and verified results; do not record intentions as facts.
   bug-report line differs on purpose (Camel patch project), as does the product
   name and copyright attribution in `--version`; GNU's author line is
   intentionally not printed.
-- The initial environment has GNU patch 2.8, GNU diffutils 3.12, ed, and Perl
-  5.42.3. Recheck tool versions when working in another environment.
+- Last verified local environment: GNU patch 2.8, GNU diffutils 3.12, GNU ed
+  1.22.5, Perl 5.42.3, IO::Pty 1.31, and Ubuntu/Debian Linux. Recheck tool
+  versions when working in another environment.
 - Test-suite facts verified from the pinned checkout: 49 test scripts; expected
   failures `context-format` and `dash-o-append`; the Haiku-only XFAIL for
   `preserve-mode-and-timestamp` does not apply on Linux; no GNU reference test
@@ -151,6 +164,8 @@ AGENTS.md                  maintained contributor and agent guide
 patch.pl                   complete runtime implementation
 LICENSE                    verbatim GNU GPL license text
 README.md                  purpose, usage, dependencies, testing, exclusions
+.github/workflows/ci.yml    CI on main pushes and pull requests
+.pre-commit-config.yaml     repository lint and hygiene hooks
 .gitmodules                GNU reference repository location
 compat/2.8.json            target revision, expectations, approved exclusions
 tools/test.pl              project-owned test runner
@@ -161,8 +176,10 @@ build/                     ignored scratch area, created by the test runner
 ```
 
 Implemented: `AGENTS.md`, `LICENSE`, `README.md`, `.gitmodules`,
-`compat/2.8.json`, `tools/test.pl`, `tools/differential.pl`, `tests/differential/`,
-`gnu-patch`, `patch.pl`.
+`.github/workflows/ci.yml`, `.pre-commit-config.yaml`, `.yamllint.yaml`,
+`.perlcriticrc`, `compat/2.8.json`, `tools/test.pl`, `tools/differential.pl`,
+`tests/differential/`, standalone regression scripts under `tests/`, `gnu-patch`,
+and `patch.pl`.
 
 The runner ignores `build/`: it writes per-test logs to `build/logs/<target>/`
 and runs tests in scratch directories under `build/work.<pid>` (removed after
@@ -224,6 +241,24 @@ perl tools/test.pl --test asymmetric-hunks  # selection accepts repeats and comm
 perl tools/test.pl --list                   # inventory with expected failures
 ```
 
+For a local CI-equivalent GNU reference, build and install the exact v2.8 release
+tarball from `https://ftp.gnu.org/gnu/patch/patch-2.8.tar.xz`. Set
+`ac_cv_path_ED=ed` at configure time so failure diagnostics match the established
+`/usr/bin/patch` baseline:
+
+```sh
+curl --fail --location https://ftp.gnu.org/gnu/patch/patch-2.8.tar.xz | tar -xJ
+cd patch-2.8
+ac_cv_path_ED=ed ./configure --prefix=/tmp/gnu-patch-2.8
+make --jobs=2
+make install
+perl /path/to/camelpatch/tools/test.pl --patch /tmp/gnu-patch-2.8/bin/patch
+perl /path/to/camelpatch/tools/differential.pl --reference /tmp/gnu-patch-2.8/bin/patch
+```
+
+The checked-out `gnu-patch` submodule supplies GNU's shell tests and must match
+the manifest commit; it is not the CI reference executable build.
+
 Verified behavior of `tools/test.pl`:
 
 - Reads the newest `compat/<version>.json` (or `--manifest`), verifies the
@@ -263,7 +298,8 @@ pre-commit run --all-files
 ```
 
 The pre-commit checks run separately from both compatibility test paths and
-cover repository hygiene, YAML, spelling, Perl::Critic, and ShellCheck.
+cover repository hygiene, YAML, spelling, Perl::Critic, and ShellCheck. CI runs
+them with `pre-commit run --all-files` after the compatibility suites.
 
 - Cases are array references returned by `tests/differential/*.pl`, with unique
   `group.name` identifiers. They declare arguments, input bytes, environment
@@ -278,24 +314,28 @@ cover repository hygiene, YAML, spelling, Perl::Critic, and ShellCheck.
   `build/patch`, which belongs to the GNU-suite runner.
 - Each process gets isolated files, a fixed umask, C locale, UTC timezone, and
   cleaned patch/Perl environment defaults. Environment cases explicitly override
-  these defaults. Processes have no controlling terminal; actual terminal-prompt
-  coverage remains a separate verification gap.
+  these defaults. Ordinary cases have no controlling terminal; cases declaring
+  `tty_input` use test-only IO::Pty to provide a controlling terminal.
 - Compares exit status, signal, separate stdout/stderr streams, file contents,
   directory structure, modes, ownership, symlink targets, and hardlink relations.
   Independent inode numbers and incidental timestamps are not equal across runs;
   relevant mtimes are explicitly selected by a case.
-- The initial cases normalize only program-name differences in diagnostic prefixes
-  and usage hints. Raw outputs remain available for review. Do not add broad
-  normalization to hide a mismatch. Identity-output cases will need explicit
-  treatment of the already-approved version/help differences when added.
+- Output normalization is limited to program-name differences in diagnostic
+  prefixes and usage hints. Raw outputs remain available for review. Do not add
+  broad normalization to hide a mismatch. Version/help branding differences are
+  intentional; `tests/version-output.sh` checks Camel's version banner directly.
 - Artifacts are retained under `build/differential/run.XXXXXX/<case>/`:
   `reference/` and `camel/` each contain `work/`, `stdin`, `stdout`, `stderr`,
   `status.json`, and `tree.json`; `result.json` lists mismatched fields.
   `run.json` records the system interpreter, reference, manifest, and selected cases.
+- Cases can specify `stdout_contains`, `setup_error`, `expected_files`, and
+  `expected_absent` sanity checks as well as reference-vs-Camel comparisons.
+  These assert intended workflow outcomes, not just agreement between the targets.
 - Default timeout is 10 seconds per process (`--timeout`); a timeout or signal
   fails the case. Exit 0 means all selected cases match, 1 means differences,
-  and 2 means runner/prerequisite trouble. The initial cases need no extra tools
-  beyond Perl, the reference executable, and the normal Linux filesystem.
+  and 2 means runner/prerequisite trouble. PTY cases additionally require
+  IO::Pty; standard cases need Perl, the reference executable, and the normal
+  Linux filesystem.
 - GNU-suite XFAIL expectations are not imported: equal reference behavior is a
   differential PASS, including behavior that GNU itself considers a known bug.
 
@@ -328,9 +368,12 @@ cover repository hygiene, YAML, spelling, Perl::Critic, and ShellCheck.
   the suite on that interpreter is not a completion requirement. Report remaining
   gaps honestly.
 
-## Initial implementation sequence
+## Historical implementation sequence
 
-1. Create this guide (the current step).
+The following records the original implementation plan for provenance; it is
+completed history, not a list of work currently pending.
+
+1. Create this guide.
 2. Add and verify the pinned GNU reference checkout, LICENSE, compatibility manifest,
    brief README, and test infrastructure. Establish the GNU baseline.
 3. Implement CLI behavior and exact unified patch application.
@@ -338,8 +381,9 @@ cover repository hygiene, YAML, spelling, Perl::Critic, and ShellCheck.
 5. Add normal/context/Git-style parsing, filename rules, creation/deletion, and ed.
 6. Add rejects, backups, dry-run/output modes, merge, `-D`, and prompts.
 7. Close filesystem and malformed-input compatibility gaps.
-8. Complete full-suite and differential verification in environments with the
-   minimum supported system Perl and a current system Perl.
+8. Complete full-suite and differential verification on a current system Perl.
+   Keep implementation compatible with Perl 5.22.1; a minimum-version test run
+   is not required.
 
 Adjust milestone ordering when dependencies justify it, while keeping verification
 and this guide current. Ask the user about genuine scope or compatibility decisions;

@@ -89,7 +89,8 @@ pre-commit run --all-files
 
 This checks common repository issues, YAML, spelling, Perl style with
 Perl::Critic, and shell scripts with ShellCheck. Pre-commit installs the managed
-hook environments; ShellCheck must be installed on the system.
+hook environments, including the ShellCheck executable; no separate system
+ShellCheck installation is needed.
 
 ### Extra differential tests
 
