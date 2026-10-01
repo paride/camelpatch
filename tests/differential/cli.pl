@@ -46,4 +46,15 @@ push @cases, {
     name => 'cli.directory-order', args => ['-d', 'sub', '-i', 'input.diff', '-p1'], reference_exit => 0,
     files => { 'sub/f' => "one\n", 'sub/input.diff' => $patch },
 };
+my $large_old = ('a' x 70000) . "\n";
+my $large_new = ('b' x 70000) . "\n";
+my $large_patch = "--- f\n+++ f\n@@ -1 +1 @@\n-$large_old+$large_new";
+push @cases, {
+    name => 'cli.large-patch-stdin', args => [], reference_exit => 0,
+    files => { f => $large_old }, stdin => $large_patch,
+};
+push @cases, {
+    name => 'cli.large-patch-file', args => ['-i', 'input.diff'], reference_exit => 0,
+    files => { f => $large_old, 'input.diff' => $large_patch }, stdin => '',
+};
 return \@cases;

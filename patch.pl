@@ -235,6 +235,18 @@ sub pfatal {
 sub read_fatal  { pfatal('read error') }
 sub write_fatal { pfatal('write error') }
 
+sub read_all {
+    my ($fh) = @_;
+    my $data = '';
+    while (1) {
+        my $got = sysread($fh, my $chunk, 65536);
+        read_fatal() unless defined $got;
+        last unless $got;
+        $data .= $chunk;
+    }
+    return $data;
+}
+
 sub say {
     my $text = join '', @_;
     my $fh = $SAY_TO_STDERR ? \*STDERR : \*STDOUT;
@@ -273,9 +285,8 @@ sub ask {
         return "\n";
     }
     my $answer = '';
-    my $chunk;
     while (1) {
-        my $got = sysread($TTYFH, $chunk, 4096, length $answer);
+        my $got = sysread($TTYFH, my $chunk, 4096);
         if (!defined $got) {
             print STDERR $PROGRAM_NAME, ': tty read failed: ',
                 errno_text($!), "\n";
@@ -287,6 +298,7 @@ sub ask {
             say("EOF\n");
             return "\n";
         }
+        $answer .= $chunk;
         last if $chunk =~ /\n\z/ || $got < 4096;
     }
     return $answer;
@@ -1075,27 +1087,13 @@ sub re_patch {
 sub open_patch_file {
     my ($filename) = @_;
     if (!defined $filename || $filename eq '' || $filename eq '-') {
-        my $data = '';
-        while (1) {
-            my $got = sysread(STDIN, my $chunk, 65536, length $data);
-            read_fatal() unless defined $got;
-            last unless $got;
-            $data .= $chunk;
-        }
-        $PATCHFILE_DATA = $data;
+        $PATCHFILE_DATA = read_all(\*STDIN);
     }
     else {
         open my $fh, '<:raw', $filename
             or pfatal("Can't open patch file %s", quotearg($filename));
-        my $data = '';
-        while (1) {
-            my $got = sysread($fh, my $chunk, 65536, length $data);
-            read_fatal() unless defined $got;
-            last unless $got;
-            $data .= $chunk;
-        }
+        $PATCHFILE_DATA = read_all($fh);
         close $fh;
-        $PATCHFILE_DATA = $data;
     }
     $PATCHFILE_SIZE = length $PATCHFILE_DATA;
     next_intuit_at(0, 1);
@@ -4089,13 +4087,7 @@ sub copy_file {
     }
     binmode $fh, ':raw';
     open my $src, '<:raw', $from or pfatal("Can't reopen file %s", quotearg($from));
-    my $data = '';
-    while (1) {
-        my $got = sysread($src, my $chunk, 65536, length $data);
-        read_fatal() unless defined $got;
-        last unless $got;
-        $data .= $chunk;
-    }
+    my $data = read_all($src);
     close $src;
     print $fh $data or write_fatal();
     close $fh or write_fatal();
@@ -4126,15 +4118,9 @@ sub move_file {
         if (($mode & 0170000) == 0120000) {
             # $from contains the contents of the symlink we have patched;
             # convert that back into a symlink.
-            my $buffer = '';
             open my $fh, '<:raw', $from
                 or pfatal("Can't reopen file %s", quotearg($from));
-            while (1) {
-                my $got = sysread($fh, my $chunk, 65536, length $buffer);
-                read_fatal() unless defined $got;
-                last unless $got;
-                $buffer .= $chunk;
-            }
+            my $buffer = read_all($fh);
             close $fh;
             my $to_dir_known_to_exist = 0;
             if (!$backup) {
@@ -4396,13 +4382,7 @@ sub do_ed_script {
     if (-f $output_path) {
         open my $fh, '<:raw', $output_path
             or pfatal("Can't open file %s", quotearg($output_path));
-        my $data = '';
-        while (1) {
-            my $got = sysread($fh, my $chunk, 65536, length $data);
-            read_fatal() unless defined $got;
-            last unless $got;
-            $data .= $chunk;
-        }
+        my $data = read_all($fh);
         close $fh;
         my $pos = 0;
         while (1) {
@@ -4488,13 +4468,7 @@ sub do_ed_script {
     if (defined $ofp) {
         open my $ifp, '<:raw', $output_path
             or pfatal("can't open '%s'", $output_path);
-        my $data = '';
-        while (1) {
-            my $got = sysread($ifp, my $chunk, 65536, length $data);
-            read_fatal() unless defined $got;
-            last unless $got;
-            $data .= $chunk;
-        }
+        my $data = read_all($ifp);
         close $ifp;
         fput($ofp, $data);
     }
