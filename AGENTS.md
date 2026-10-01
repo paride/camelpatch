@@ -38,7 +38,8 @@ implemented features and verified results; do not record intentions as facts.
   quoting styles are approximated with Unicode quotes. GNU's fd-based safe
   path traversal is emulated with lstat-based component checks. The `--help`
   bug-report line differs on purpose (Camel patch project), as does the product
-  name in `--version`.
+  name in `--version`; the "Written by Larry Wall and Paul Eggert" line of
+  GNU's `--version` output is intentionally not printed.
 - The initial environment has GNU patch 2.8, GNU diffutils 3.12, ed, and Perl
   5.42.3. Recheck tool versions when working in another environment. Perl
   5.22.1 has not yet been provisioned.
@@ -106,6 +107,10 @@ to investigate behavior beyond the suite.
   The external `ed` executable must not be required by `patch.pl`.
 - Add `LICENSE` by copying the target GNU release's `COPYING` verbatim. GNU patch
   v2.8 uses **GPL-3.0-or-later** licensing terms; use the same terms for this project.
+- Camel patch's copyright owner is **Canonical Ltd**; the author is
+  Paride Legovini <paride@ubuntu.com>. `patch.pl` carries this attribution in
+  standard SPDX header tags (SPDX-FileCopyrightText, SPDX-FileContributor,
+  SPDX-License-Identifier).
 - Preserve applicable copyright and license notices for material adapted from
   the GNU reference. Keep product branding distinct from legal attribution.
 

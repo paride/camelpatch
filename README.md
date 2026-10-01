@@ -67,6 +67,7 @@ See `perl tools/test.pl --help` for the full interface. Test-only dependencies
 
 ## License
 
-Licensed under GPL-3.0-or-later; see `LICENSE`. GNU patch is
-copyright the Free Software Foundation and Larry Wall; this project preserves
-the applicable notices.
+Licensed under GPL-3.0-or-later; see `LICENSE`. Camel patch is copyright
+Canonical Ltd, authored by Paride Legovini
+<paride@ubuntu.com>. GNU patch is copyright the Free Software Foundation
+and Larry Wall; this project preserves the applicable notices.
