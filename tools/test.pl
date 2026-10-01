@@ -245,21 +245,30 @@ sub run_test {
     my $pid = fork;
     die "Cannot fork: $!\n" unless defined $pid;
     if ($pid == 0) {
-        open STDIN,  '<',  '/dev/null'      or die "stdin: $!\n";
-        open STDOUT, '>>', $arg{log}        or die "log: $!\n";
-        open STDERR, '>&', \*STDOUT        or die "stderr: $!\n";
-        chdir $arg{work}                    or die "chdir: $!\n";
+        open STDOUT, '>', $arg{log}
+            or POSIX::_exit(125);
+        open STDERR, '>&', \*STDOUT
+            or POSIX::_exit(125);
+        open STDIN, '<', '/dev/null'
+            or child_runner_error("stdin: $!");
+        chdir $arg{work}
+            or child_runner_error("chdir $arg{work}: $!");
         $ENV{$_} = $arg{env}{$_} for keys %{ $arg{env} };
         print "# command: /bin/sh $arg{script}\n";
         print "# PATCH: $arg{env}{PATCH}\n";
-        POSIX::setsid();
-        exec '/bin/sh', $arg{script} or die "exec: $!\n";
+        POSIX::setsid() >= 0
+            or child_runner_error("setsid: $!");
+        exec '/bin/sh', $arg{script}
+            or child_runner_error("exec /bin/sh: $!");
     }
     my $timed_out = 0;
+    my $wait_status;
     eval {
         local $SIG{ALRM} = sub { die "timeout\n" };
         alarm $arg{timeout};
-        waitpid $pid, 0;
+        my $waited = waitpid $pid, 0;
+        die "waitpid: $!\n" if $waited < 0;
+        $wait_status = $?;
         alarm 0;
     };
     if ($@ and $@ eq "timeout\n") {
@@ -268,9 +277,23 @@ sub run_test {
         sleep 1;
         kill 'KILL', -$pid;
         waitpid $pid, 0;
+        $wait_status = $?;
     }
     elsif ($@) { die $@ }
-    return wantarray ? ($? >> 8, $timed_out) : ($? >> 8);
+    my $exit = ($wait_status >> 8) & 255;
+    my $signal = $wait_status & 127;
+    return {
+        exit => $exit,
+        signal => $signal,
+        timed_out => $timed_out,
+        runner_error => $exit == 125 ? 1 : 0,
+    };
+}
+
+sub child_runner_error {
+    my ($message) = @_;
+    print STDERR "test runner child error: $message\n";
+    POSIX::_exit(125);
 }
 
 sub skip_reason {
@@ -285,15 +308,35 @@ sub skip_reason {
 }
 
 sub classify {
-    my ($exit, $timed_out, $is_xfail, $log) = @_;
+    my ($result, $is_xfail, $log) = @_;
     my ($label, $reason);
-    if ($timed_out)     { $label = 'FAIL'; $reason = 'timed out' }
-    elsif ($exit == 0)  { $label = 'PASS' }
-    elsif ($exit == 77) { $label = 'SKIP'; $reason = skip_reason($log) }
-    else                { $label = 'FAIL'; $reason = "exit status $exit" }
+    if ($result->{runner_error}) {
+        $label = 'ERROR';
+        $reason = 'test runner child failed; see log';
+    }
+    elsif ($result->{timed_out}) {
+        $label = 'FAIL';
+        $reason = 'timed out';
+    }
+    elsif ($result->{signal}) {
+        $label = 'FAIL';
+        $reason = "terminated by signal $result->{signal}";
+    }
+    elsif ($result->{exit} == 0) {
+        $label = 'PASS';
+    }
+    elsif ($result->{exit} == 77) {
+        $label = 'SKIP';
+        $reason = skip_reason($log);
+    }
+    else {
+        $label = 'FAIL';
+        $reason = "exit status $result->{exit}";
+    }
     if ($is_xfail) {
         return ('XPASS', $reason) if $label eq 'PASS';
-        return ('XFAIL', $reason) if $label eq 'FAIL';
+        return ('XFAIL', $reason)
+            if $label eq 'FAIL' && $result->{exit} == 1;
     }
     return ($label, $reason);
 }
@@ -358,16 +401,14 @@ sub main {
             abs_top_builddir => $work,
             PATCH            => $target,
         };
-        my ($exit, $timed_out) = run_test(
+        my $result = run_test(
             script  => catfile($tests_dir, $test),
             env     => $env,
             log     => $log,
             work    => $work,
             timeout => $opt{timeout},
         );
-        my ($label, $reason) = classify(
-            $exit, $timed_out, $inventory_xfail->{$test}, $log
-        );
+        my ($label, $reason) = classify($result, $inventory_xfail->{$test}, $log);
         push @results, {
             name   => $test,
             label  => $label,
@@ -386,13 +427,13 @@ sub main {
 
     remove_tree($work) unless $opt{keep};
 
-    my @unexpected = grep { $_->{label} =~ /\A(?:FAIL|XPASS|SKIP)\z/ } @results;
+    my @unexpected = grep { $_->{label} =~ /\A(?:FAIL|XPASS|SKIP|ERROR)\z/ } @results;
     if (@unexpected) {
         print "Unexpected results:\n";
         printf "  %-6s %s (%s)\n", $_->{label}, $_->{name}, $_->{reason} // ''
             for @unexpected;
         print "Verdict: FAIL\n";
-        return 1;
+        return (grep { $_->{label} eq 'ERROR' } @unexpected) ? 2 : 1;
     }
     print "Verdict: PASS\n";
     return 0;
