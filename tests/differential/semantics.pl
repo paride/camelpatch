@@ -26,6 +26,24 @@ for my $spec (
         files => { f => $content }, reference_exit => $expected,
     };
 }
+push @cases, {
+    name => 'prereq.missing-interactive-yes', args => ['-p0'],
+    stdin => "Prereq: revision-1\n" . $hunk,
+    tty_input => "y\n", files => { f => "different\nold\n" },
+    reference_exit => 0,
+};
+push @cases, {
+    name => 'prereq.missing-interactive-no', args => ['-p0'],
+    stdin => "Prereq: revision-1\n" . $hunk,
+    tty_input => "n\n", files => { f => "different\nold\n" },
+    reference_exit => 2,
+};
+push @cases, {
+    name => 'prereq.missing-interactive-eof', args => ['-p0'],
+    stdin => "Prereq: revision-1\n" . $hunk,
+    tty_input => "\x04", files => { f => "different\nold\n" },
+    reference_exit => 2,
+};
 
 my $define_patch = <<'PATCH';
 --- f
@@ -76,5 +94,16 @@ for my $spec (
         (defined $expected ? (reference_exit => $expected) : ()),
     };
 }
+
+push @cases, {
+    name => 'prompt.reverse-yes', args => ['-p0'],
+    stdin => $hunk, tty_input => "y\n", files => { f => "new\n" },
+    reference_exit => 0,
+};
+push @cases, {
+    name => 'prompt.reverse-no-apply-yes', args => ['-p0'],
+    stdin => $hunk, tty_input => "n\ny\n", files => { f => "one\n" },
+    reference_exit => 1,
+};
 
 return \@cases;

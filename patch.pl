@@ -370,12 +370,15 @@ sub quotearg_buffer {
     }
     elsif ($style eq 'shell-always')        { $shell_always = 1 }
     elsif ($style eq 'shell-escape-always') { $shell_always = 1; $backslash_escapes = 1 }
-    elsif ($style eq 'c')                   { $quote_string = '"'; $backslash_escapes = 1 }
+    elsif ($style eq 'c' || $style eq 'clocale') {
+        $quote_string = '"';
+        $backslash_escapes = 1;
+    }
     elsif ($style eq 'c-maybe')             { $quote_string = '"'; $backslash_escapes = 1 }
     elsif ($style eq 'escape')              { $backslash_escapes = 1 }
-    elsif ($style eq 'locale' || $style eq 'clocale') {
+    elsif ($style eq 'locale') {
         $backslash_escapes = 1;
-        my $out = "\x{2018}";
+        my $out = "'";
         my $len = length $arg;
         for (my $i = 0; $i < $len; $i++) {
             my $c = ord(substr($arg, $i, 1));
@@ -388,7 +391,7 @@ sub quotearg_buffer {
             elsif ($byte eq '\\')      { $out .= '\\\\' }
             else                       { $out .= $byte }
         }
-        return $out . "\x{2019}";
+        return $out . "'";
     }
     else { $backslash_escapes = 0 }   # literal
 
@@ -540,6 +543,9 @@ sub quotearg_buffer {
         goto store_c;
     }
 
+    if ($style eq 'clocale' && $out !~ /\A[A-Za-z0-9_.,+\/-]+\z/) {
+        $force = 1;
+    }
     if ($out eq '' && $shell_always && $elide_outer_quotes) {
         $force = 1;
     }
@@ -548,7 +554,7 @@ sub quotearg_buffer {
         my $forced_style = $style;
         if ($style eq 'shell-escape') { $forced_style = 'shell-escape-always' }
         elsif ($style eq 'shell')     { $forced_style = 'shell-always' }
-        elsif ($style eq 'c-maybe')   { $forced_style = 'c' }
+        elsif ($style eq 'c-maybe' || $style eq 'clocale') { $forced_style = 'c' }
         return quotearg_buffer($arg, $forced_style);
     }
 

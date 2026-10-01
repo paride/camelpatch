@@ -29,10 +29,19 @@ for my $spec (
         files => { f => "one\n" }, stdin => $patch,
     };
 }
-for my $style (qw(literal shell shell-always c escape)) {
+for my $style (qw(literal shell shell-always c escape locale clocale)) {
     push @cases, {
         name => "environment.quoting-$style", env => { QUOTING_STYLE => $style },
         args => ['-p0'], reference_exit => 0, files => { 'a b' => "one\n" },
+        stdin => "--- \"a b\"\n+++ \"a b\"\n@@ -1 +1 @@\n-one\n+two\n",
+    };
+}
+for my $style (qw(locale clocale)) {
+    push @cases, {
+        name => "environment.quoting-$style-utf8",
+        env => { QUOTING_STYLE => $style, LC_ALL => 'C.utf8' },
+        args => ['-p0'], reference_exit => 0,
+        files => { 'a b' => "one\n" },
         stdin => "--- \"a b\"\n+++ \"a b\"\n@@ -1 +1 @@\n-one\n+two\n",
     };
 }

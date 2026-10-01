@@ -92,14 +92,16 @@ perl tools/differential.pl --case cli.short-clusters
 perl tools/differential.pl --list
 ```
 
-The initial 52 cases cover CLI parsing and environment-variable behavior,
-including large patch input from stdin and `-i`.
+The differential cases cover CLI and environment behavior, fractional timestamp
+handling, `Prereq:`, `-D`, ed edge cases, selected terminal prompts, and quoting
+styles in the available C and C.utf8 locales. PTY prompt cases require the
+test-only Perl `IO::Pty` module; it is not a runtime dependency.
 The reference executable must report GNU patch 2.8, matching the compatibility
 manifest. Each case runs both implementations in equivalent isolated directories
 and compares exit status, stdout, stderr, file bytes, directory structure, modes,
-ownership, symlink targets, and hardlink relationships. Cases can also request
-mtime comparison for specific files. Arbitrary creation/modification timestamps
-and inode numbers are not compared, since those differ between independent runs.
+ownership, symlink targets, hardlink relationships, and selected timestamps.
+Arbitrary creation/modification timestamps and inode numbers are not compared,
+since those differ between independent runs.
 
 Only invocation-name differences in diagnostics are normalized in the initial
 cases. Raw outputs, status records, filesystem snapshots, and both work trees are

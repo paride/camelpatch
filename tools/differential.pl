@@ -7,6 +7,7 @@ use strict;
 use warnings;
 
 use Cwd qw(abs_path);
+use Errno qw(EIO EAGAIN);
 use File::Basename qw(basename dirname);
 use File::Find qw(find);
 use File::Path qw(make_path);
@@ -172,14 +173,35 @@ sub run_process {
     my $work = "$dir/work";
     setup_tree($case, $work);
     write_bytes("$dir/stdin", $case->{stdin} // '');
+    my $pty;
+    if (exists $case->{tty_input}) {
+        require IO::Pty;
+        $pty = IO::Pty->new;
+    }
     my $pid = fork;
     die "fork: $!\n" unless defined $pid;
     if (!$pid) {
-        open STDOUT, '>:raw', "$dir/stdout"
-            or child_runner_error($dir, "open stdout: $!");
-        open STDERR, '>:raw', "$dir/stderr"
-            or child_runner_error($dir, "open stderr: $!");
-        setsid() >= 0 or child_runner_error($dir, "setsid: $!");
+        if ($pty) {
+            open STDOUT, '>&', $pty->slave
+                or child_runner_error($dir, "open pty stdout: $!");
+        }
+        else {
+            open STDOUT, '>:raw', "$dir/stdout"
+                or child_runner_error($dir, "open stdout: $!");
+        }
+        if ($pty) {
+            $pty->make_slave_controlling_terminal
+                or child_runner_error($dir, 'make controlling terminal failed');
+            open STDERR, '>:raw', "$dir/stderr"
+                or child_runner_error($dir, "open stderr: $!");
+            $pty->close_slave;
+            close $pty;
+        }
+        else {
+            open STDERR, '>:raw', "$dir/stderr"
+                or child_runner_error($dir, "open stderr: $!");
+            setsid() >= 0 or child_runner_error($dir, "setsid: $!");
+        }
         chdir $work or child_runner_error($dir, "chdir $work: $!");
         umask 0022;
         delete @ENV{qw(PATCH_GET POSIXLY_CORRECT QUOTING_STYLE SIMPLE_BACKUP_SUFFIX
@@ -194,6 +216,16 @@ sub run_process {
             or child_runner_error($dir, "open stdin: $!");
         if (!exec { $command->[0] } @$command, @{ $case->{args} // [] }) {
             child_runner_error($dir, "exec $command->[0]: $!");
+        }
+    }
+    if ($pty) {
+        $pty->close_slave;
+        my $input = $case->{tty_input};
+        my $offset = 0;
+        while ($offset < length $input) {
+            my $written = syswrite($pty, $input, length($input) - $offset, $offset);
+            die "write prompt input: $!\n" unless defined $written && $written > 0;
+            $offset += $written;
         }
     }
     my $deadline = time() + $timeout;
@@ -216,6 +248,17 @@ sub run_process {
     }
     my $result = { exit => $status >> 8, signal => $status & 127,
                    timed_out => $timed_out };
+    if ($pty) {
+        my $output = '';
+        while (1) {
+            my $read = sysread($pty, my $chunk, 65536);
+            last if !defined($read) && ($! == EIO || $! == EAGAIN);
+            die "read prompt output: $!\n" unless defined $read;
+            last unless $read;
+            $output .= $chunk;
+        }
+        write_bytes("$dir/stdout", $output);
+    }
     if (-f "$dir/runner-error.txt") {
         $result->{runner_error} = read_bytes("$dir/runner-error.txt");
         chomp $result->{runner_error};

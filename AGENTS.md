@@ -33,11 +33,17 @@ implemented features and verified results; do not record intentions as facts.
   matching the recorded GNU baseline. The launcher (`build/patch`) is
   exercised by this and preserves `$0` for program-name diagnostics.
 - Differential result: `perl tools/differential.pl --reference /usr/bin/patch`
-  reports **53 PASS, 0 FAIL, 0 SKIP**, exit 0 on Perl 5.42.3. The cases cover
+  reports **77 PASS, 0 FAIL, 0 SKIP**, exit 0 on Perl 5.42.3. The cases cover
   CLI parsing and environment variables and uncovered defects in short-option
   clusters, permutation of separate arguments, `-d`, unknown short options,
   backup-style abbreviations/diagnostics, and empty environment precedence;
-  these were fixed without changing the GNU reference suite.
+  these were fixed without changing the GNU reference suite. Added coverage
+  checks fractional timestamp matching and `-T`, `Prereq:`, `-D`, ed failure
+  edges, PTY prompt responses, and `locale`/`clocale` quoting under C and C.utf8.
+- `patch.pl` uses Time::HiRes fractional `stat` results and splits timestamp
+  seconds/nanoseconds explicitly; core stat has no separate nanosecond fields.
+- Differential PTY cases use the test-only IO::Pty module, which is not required
+  by `patch.pl` at runtime.
 - Code-quality review completed in focused commits: byte-stream reads use a
   shared `read_all` helper with large-input regression cases and copies use a
   bounded-memory stream helper; hunk storage no longer simulates C allocation or
@@ -50,9 +56,8 @@ implemented features and verified results; do not record intentions as facts.
 - Porting decisions worth review: GNU's merge leaves the diffseq
   `too_expensive` heuristic uninitialized in C; the Perl port pins it to a
   large constant (effectively disabling the give-up path) and this matches
-  GNU's practical behavior on test-sized inputs. The `locale`/`clocale`
-  quoting styles are approximated with Unicode quotes. GNU's fd-based safe
-  path traversal is emulated with lstat-based component checks. The `--help`
+  GNU's practical behavior on test-sized inputs. GNU's fd-based safe path
+  traversal is emulated with lstat-based component checks. The `--help`
   bug-report line differs on purpose (Camel patch project), as does the product
   name in `--version`; the "Written by Larry Wall and Paul Eggert" line of
   GNU's `--version` output is intentionally not printed.
@@ -62,12 +67,11 @@ implemented features and verified results; do not record intentions as facts.
   failures `context-format` and `dash-o-append`; the Haiku-only XFAIL for
   `preserve-mode-and-timestamp` does not apply on Linux; no GNU reference test
   exercises legacy VCS retrieval, so that exclusion affects no tests.
-- Remaining verification gaps for final acceptance: further CLI/environment
-  differential coverage beyond the initial 53 cases, terminal prompts,
-  `Prereq:`, ed and `-D` edge cases,
-  metadata edge cases, minimum system-Perl verification, and a scan of GNU
-  behaviors not exercised by either test path. The initial 52 differential
-  cases are not exhaustive coverage.
+- Remaining verification gaps: broader coverage of uncommon CLI/environment
+  interactions, prompt sequences beyond the tested prerequisite and reverse
+  prompts, metadata beyond timestamp matching, quoting outside the available C
+  and C.utf8 locales, and GNU behaviors not exercised by either test path. The
+  differential suite remains targeted rather than exhaustive.
 
 Update this section when these facts change.
 
