@@ -42,9 +42,9 @@ guide, the current state, and the testing workflow.
 
 ## Requirements
 
-- Perl 5.22.1 or newer; core modules only. The test runners use the system
-  Perl in their environment. For minimum-version verification, run the test
-  commands in a suitable VM or container whose system Perl meets the requirement.
+- Perl 5.22.1 or newer; core modules only. Perl 5.22.1 is the version in Ubuntu
+  16.04 (Xenial), currently the oldest Debian or Ubuntu release this project aims
+  to support. The test runners use the system Perl in their environment.
 - Linux is the initial platform.
 - No network access at runtime.
 
