@@ -57,4 +57,14 @@ push @cases, {
     name => 'cli.large-patch-file', args => ['-i', 'input.diff'], reference_exit => 0,
     files => { f => $large_old, 'input.diff' => $large_patch }, stdin => '',
 };
+my $large_original = ('unchanged line\n' x 7000) . "last\n";
+my $reject_patch = "--- f\n+++ f\n@@ -999999,1 +999999,1 @@\n-absent-one\n+replacement-one\n";
+my $second_reject_patch = "--- f\n+++ f\n@@ -999998,1 +999998,1 @@\n-absent-two\n+replacement-two\n";
+push @cases, {
+    name => 'cli.large-backup-and-appended-reject',
+    args => ['-b', '-p0', '-i', 'patches.diff'],
+    files => { f => $large_original,
+               'patches.diff' => $reject_patch . $second_reject_patch },
+    stdin => '',
+};
 return \@cases;

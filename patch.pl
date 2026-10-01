@@ -230,6 +230,33 @@ sub read_all {
     return $data;
 }
 
+sub copy_stream {
+    my ($source, $destination) = @_;
+    while (1) {
+        my $read = sysread($source, my $buffer, 65536);
+        read_fatal() unless defined $read;
+        last unless $read;
+
+        my $offset = 0;
+        while ($offset < $read) {
+            my $written = syswrite($destination, $buffer, $read - $offset, $offset);
+            write_fatal() unless defined $written && $written > 0;
+            $offset += $written;
+        }
+    }
+}
+
+sub append_file {
+    my ($source_name, $destination_name) = @_;
+    open my $source, '<:raw', $source_name
+        or pfatal("Can't reopen file %s", quotearg($source_name));
+    open my $destination, '>>:raw', $destination_name
+        or pfatal("Can't reopen file %s", quotearg($destination_name));
+    copy_stream($source, $destination);
+    close $source or read_fatal();
+    close $destination or write_fatal();
+}
+
 sub say {
     my $text = join '', @_;
     my $fh = $SAY_TO_STDERR ? \*STDERR : \*STDOUT;
@@ -4077,9 +4104,8 @@ sub copy_file {
     }
     binmode $fh, ':raw';
     open my $src, '<:raw', $from or pfatal("Can't reopen file %s", quotearg($from));
-    my $data = read_all($src);
-    close $src;
-    print $fh $data or write_fatal();
+    copy_stream($src, $fh);
+    close $src or read_fatal();
     close $fh or write_fatal();
     set_file_attributes($to, $attr, $from, $from_st, $mode, undef);
     if (defined $outto->{stat_to}) {
@@ -5645,20 +5671,7 @@ sub main {
                                 $OUTREJ_EXISTS = 1;
                             }
                             else {
-                                open my $src, '<:raw', $TEMP_REJ_NAME
-                                    or pfatal("Can't reopen file %s",
-                                              quotearg($TEMP_REJ_NAME));
-                                open my $dst, '>>:raw', $rejname
-                                    or pfatal("Can't reopen file %s",
-                                              quotearg($rejname));
-                                while (1) {
-                                    my $got = sysread($src, my $chunk, 65536);
-                                    read_fatal() unless defined $got;
-                                    last unless $got;
-                                    print $dst $chunk or write_fatal();
-                                }
-                                close $src;
-                                close $dst or write_fatal();
+                                append_file($TEMP_REJ_NAME, $rejname);
                             }
                         }
                         else {
@@ -5666,20 +5679,7 @@ sub main {
                             my $olderrno = stat_file($rej, $oldst);
                             write_fatal() if $olderrno && $olderrno != 2;
                             if (!$olderrno && lookup_file_id($oldst) == FILE_ID_CREATED) {
-                                open my $src, '<:raw', $TEMP_REJ_NAME
-                                    or pfatal("Can't reopen file %s",
-                                              quotearg($TEMP_REJ_NAME));
-                                open my $dst, '>>:raw', $rej
-                                    or pfatal("Can't reopen file %s",
-                                              quotearg($rej));
-                                while (1) {
-                                    my $got = sysread($src, my $chunk, 65536);
-                                    read_fatal() unless defined $got;
-                                    last unless $got;
-                                    print $dst $chunk or write_fatal();
-                                }
-                                close $src;
-                                close $dst or write_fatal();
+                                append_file($TEMP_REJ_NAME, $rej);
                             }
                             else {
                                 move_file($TEMP_REJ_NAME, $rejst, $rej,
