@@ -43,6 +43,9 @@ implemented features and verified results; do not record intentions as facts.
   and multi-file backup/reject/dry-run/output workflows.
 - `patch.pl` uses Time::HiRes fractional `stat` results and splits timestamp
   seconds/nanoseconds explicitly; core stat has no separate nanosecond fields.
+  Differential fixtures exercise representative fractions, but Time::HiRes exposes
+  timestamps as floating-point values, so this does not establish exact preservation
+  of every filesystem nanosecond value.
 - Differential PTY cases use the test-only IO::Pty module, which is not required
   by `patch.pl` at runtime.
 - `tests/ownership-fallback.sh` checks GNU's group-only chown retry with a
@@ -54,8 +57,9 @@ implemented features and verified results; do not record intentions as facts.
   entries; test runners distinguish process exit/signal/timeout/setup results;
   short-option metadata is derived from the option table.
 - Runtime compatibility is required with Perl 5.22.1 and newer. Test runners use
-  their system Perl. For minimum-version verification, run the test commands in
-  a suitable VM or container whose system Perl meets the requirement.
+  their system Perl. Perl 5.22.1 remains the syntax, core-module, and API
+  compatibility baseline; minimum-version test execution is not a completion
+  requirement.
 - Porting decisions worth review: GNU's merge leaves the diffseq
   `too_expensive` heuristic uninitialized in C; the Perl port pins it to a
   large constant (effectively disabling the give-up path) and this matches
@@ -317,8 +321,10 @@ cover repository hygiene, YAML, spelling, Perl::Critic, and ShellCheck.
 - Differential comparisons may normalize declared branding and executable-path
   differences only; other normalization needs a specific justification.
 - Final acceptance requires no unexplained or unexpected failures, no unreviewed
-  XPASS results, and complete supported coverage in environments whose system
-  Perl is 5.22.1 and a current system Perl. Report remaining gaps honestly.
+  XPASS results, and complete supported coverage on the current system Perl.
+  Perl 5.22.1 remains the implementation compatibility baseline, but running
+  the suite on that interpreter is not a completion requirement. Report remaining
+  gaps honestly.
 
 ## Initial implementation sequence
 
@@ -356,9 +362,10 @@ merely a submodule update:
    code notices. Verify LICENSE still matches the reference COPYING.
 7. Iterate through affected tests and then the full suite. Add differential cases
    for new or changed behavior that the GNU reference tests do not cover.
-8. Verify in environments with the minimum supported system Perl and a current
-   system Perl. The minimum does not rise implicitly with a new GNU release;
-   discuss any proposed change with the user.
+8. Verify on a current system Perl. Keep implementation compatible with Perl
+   5.22.1; the minimum does not rise implicitly with a new GNU release, and a
+   minimum-version runtime test is not required. Discuss any proposed baseline
+   change with the user.
 9. Update this guide with the actual repository state, target revision, working
    commands, approved decisions, and verification results. Summarize completion
    and remaining gaps to the user. Commit or release only if requested.
